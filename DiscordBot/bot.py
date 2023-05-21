@@ -19,6 +19,7 @@ logger.addHandler(handler)
 # There should be a file called 'tokens.json' inside the same folder as this file
 token_path = 'tokens.json'
 if not os.path.isfile(token_path):
+    print("SILAN HEP")
     raise Exception(f"{token_path} not found!")
 with open(token_path) as f:
     # If you get an error here, it means your token is formatted incorrectly. Did you put it in quotes?
@@ -34,6 +35,7 @@ class ModBot(discord.Client):
         self.group_num = None
         self.mod_channels = {} # Map from guild to the mod channel id for that guild
         self.reports = {} # Map from user IDs to the state of their report
+        
 
     async def on_ready(self):
         print(f'{self.user.name} has connected to Discord! It is these guilds:')
@@ -48,11 +50,18 @@ class ModBot(discord.Client):
         else:
             raise Exception("Group number not found in bot's name. Name format should be \"Group # Bot\".")
 
+        startup_channel = None
         # Find the mod channel in each guild that this bot should report to
         for guild in self.guilds:
             for channel in guild.text_channels:
                 if channel.name == f'group-{self.group_num}-mod':
                     self.mod_channels[guild.id] = channel
+                elif channel.name == f'group-{self.group_num}':
+                    startup_channel = channel
+        await startup_channel.send("WELCOME") #edit this to be pretty!
+
+                  
+
         
 
     async def on_message(self, message):
@@ -60,8 +69,10 @@ class ModBot(discord.Client):
         This function is called whenever a message is sent in a channel that the bot can see (including DMs). 
         Currently the bot is configured to only handle messages that are sent over DMs or in your group's "group-#" channel. 
         '''
+        print("this is message content = ", message.content)
         # Ignore messages from the bot 
         if message.author.id == self.user.id:
+            print("DILAN SENRT")
             return
 
         # Check if this message was sent in a server ("guild") or if it's a DM
@@ -69,10 +80,12 @@ class ModBot(discord.Client):
             await self.handle_channel_message(message)
         else:
             await self.handle_dm(message)
+        
 
     async def handle_dm(self, message):
         # Handle a help message
         if message.content == Report.HELP_KEYWORD:
+            print("Dilan we are in trouble! ")
             reply =  "Use the `report` command to begin the reporting process.\n"
             reply += "Use the `cancel` command to cancel the report process.\n"
             await message.channel.send(reply)
@@ -91,8 +104,28 @@ class ModBot(discord.Client):
 
         # Let the report class handle this message; forward all the messages it returns to uss
         responses = await self.reports[author_id].handle_message(message)
+        print(responses)
         for r in responses:
-            await message.channel.send(r)
+            if isinstance(r, str):
+                await message.channel.send(r)
+        
+        # report_state = responses[-1]
+        # print(report_state)
+        # # if report_state == 0:
+        # view = discord.ui.View()
+        # button = discord.ui.Button(label="Click me")
+        # view.add_item(button)
+        # await message.channel.send(view=view)
+        if self.reports[author_id].report_state == 0:
+            print("YOOOOOOOOO")
+            view = discord.ui.View()
+            button = discord.ui.Button(label="Click me")
+            view.add_item(button)
+            await message.channel.send(view=view)
+            
+
+
+
 
         # If the report is complete or cancelled, remove it from our map
         if self.reports[author_id].report_complete():
@@ -101,6 +134,7 @@ class ModBot(discord.Client):
     async def handle_channel_message(self, message):
         # Only handle messages sent in the "group-#" channel
         if not message.channel.name == f'group-{self.group_num}':
+            print("this is message not in group = ", message.content)
             return
 
         # Forward the message to the mod channel
@@ -108,7 +142,11 @@ class ModBot(discord.Client):
         await mod_channel.send(f'Forwarded message:\n{message.author.name}: "{message.content}"')
         scores = self.eval_text(message.content)
         await mod_channel.send(self.code_format(scores))
-
+    
+    # @discord.Client.event
+    # async def embed(ctx):
+    #     embed = discord.Embed(title="Sample Embded", url="https://google.com", description="This is a link to Google", color="0xFF3433")
+    #     await ctx.send(embed=embed)
     
     def eval_text(self, message):
         ''''
@@ -125,6 +163,8 @@ class ModBot(discord.Client):
         shown in the mod channel. 
         '''
         return "Evaluated: '" + text+ "'"
+    
+
 
 
 client = ModBot()

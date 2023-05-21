@@ -1,0 +1,2 @@
+1. Prettify the embed 'Welcome' message! 
+2. Add slash command to start a report 

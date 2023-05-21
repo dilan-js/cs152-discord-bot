@@ -17,7 +17,7 @@ class Report:
         self.state = State.REPORT_START
         self.client = client
         self.message = None
-    
+        self.report_state = -1
     async def handle_message(self, message):
         '''
         This function makes up the meat of the user-side reporting flow. It defines how we transition between states and what 
@@ -55,11 +55,18 @@ class Report:
 
             # Here we've found the message - it's up to you to decide what to do next!
             self.state = State.MESSAGE_IDENTIFIED
-            return ["I found this message:", "```" + message.author.name + ": " + message.content + "```", \
-                    "This is all I know how to do right now - it's up to you to build out the rest of my reporting flow!"]
+            self.report_state = 0 #0 = identifies, 1-10 etc. mean different renderings. 
+
+            # return ["I found this message:", "```" + message.author.name + ": " + message.content + "```", \
+            #         "This is all I know how to do right now - it's up to you to build out the rest of my reporting flow!"]
         
         if self.state == State.MESSAGE_IDENTIFIED:
-            return ["<insert rest of reporting flow here>"]
+            return ["I found this message:", "```" + message.author.name + ": " + message.content + "```", {"report_state": self.report_state}]
+            # button = discord.ui.Button(label="Click me")
+            # view = discord.ui.View()
+            # view.add_item(button)
+            # return [view]
+            
 
         return []
 
