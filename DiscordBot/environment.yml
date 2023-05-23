@@ -1,0 +1,4 @@
+name: cs152-bots
+channels:
+  - defaults
+prefix: /Users/dilannana/opt/anaconda3/envs/cs152-bots

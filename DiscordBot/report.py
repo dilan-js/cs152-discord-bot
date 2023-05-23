@@ -6,18 +6,20 @@ class State(Enum):
     REPORT_START = auto()
     AWAITING_MESSAGE = auto()
     MESSAGE_IDENTIFIED = auto()
+    MESSAGE_CONFIRMED = auto()
     REPORT_COMPLETE = auto()
 
 class Report:
     START_KEYWORD = "report"
     CANCEL_KEYWORD = "cancel"
     HELP_KEYWORD = "help"
+    CONFIRM_KEYWORDS ="yes, confirm"
 
     def __init__(self, client):
         self.state = State.REPORT_START
         self.client = client
         self.message = None
-        self.report_state = -1
+        self.report_state = -1 #0 is start, 1 is to confirm correct message, 2 is to offer category selection
     async def handle_message(self, message):
         '''
         This function makes up the meat of the user-side reporting flow. It defines how we transition between states and what 
@@ -28,6 +30,14 @@ class Report:
         if message.content == self.CANCEL_KEYWORD:
             self.state = State.REPORT_COMPLETE
             return ["Report cancelled."]
+
+        if message.content == self.CONFIRM_KEYWORDS:
+            print("WE ARE HERE IN LINE 35")
+            reply =  "Thank you for confirming! "
+            reply += "Please select the reason for reporting this message\n"
+            self.state = State.MESSAGE_CONFIRMED
+            self.report_state = 1 #confirmed
+            return [reply, {"report_state": self.report_state} ]
         
         if self.state == State.REPORT_START:
             reply =  "Thank you for starting the reporting process. "
@@ -55,17 +65,18 @@ class Report:
 
             # Here we've found the message - it's up to you to decide what to do next!
             self.state = State.MESSAGE_IDENTIFIED
-            self.report_state = 0 #0 = identifies, 1-10 etc. mean different renderings. 
+            self.report_state = 0 #0 = awaiting confirmation, 1-10 etc. mean different renderings. 
 
             # return ["I found this message:", "```" + message.author.name + ": " + message.content + "```", \
             #         "This is all I know how to do right now - it's up to you to build out the rest of my reporting flow!"]
         
         if self.state == State.MESSAGE_IDENTIFIED:
-            return ["I found this message:", "```" + message.author.name + ": " + message.content + "```", {"report_state": self.report_state}]
+            return ["I found this message:", "```" + message.author.name + ": " + message.content + "```" + "Is this the message you are wishing to report? \nClick Yes to continue or click No to enter a new link.", {"report_state": self.report_state}]
             # button = discord.ui.Button(label="Click me")
             # view = discord.ui.View()
             # view.add_item(button)
             # return [view]
+            
             
 
         return []

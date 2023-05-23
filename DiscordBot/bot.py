@@ -1,4 +1,5 @@
 # bot.py
+from typing import Optional
 import discord
 from discord.ext import commands
 import os
@@ -19,12 +20,14 @@ logger.addHandler(handler)
 # There should be a file called 'tokens.json' inside the same folder as this file
 token_path = 'tokens.json'
 if not os.path.isfile(token_path):
-    print("SILAN HEP")
     raise Exception(f"{token_path} not found!")
 with open(token_path) as f:
     # If you get an error here, it means your token is formatted incorrectly. Did you put it in quotes?
     tokens = json.load(f)
     discord_token = tokens['discord']
+
+
+
 
 
 class ModBot(discord.Client):
@@ -35,7 +38,10 @@ class ModBot(discord.Client):
         self.group_num = None
         self.mod_channels = {} # Map from guild to the mod channel id for that guild
         self.reports = {} # Map from user IDs to the state of their report
-        
+    
+    # def create_inner_views(self):
+    #     return ModBot.ConfirmView(self), ModBot.SelectReasonView(self)
+
 
     async def on_ready(self):
         print(f'{self.user.name} has connected to Discord! It is these guilds:')
@@ -60,19 +66,16 @@ class ModBot(discord.Client):
                     startup_channel = channel
         await startup_channel.send("WELCOME") #edit this to be pretty!
 
-                  
-
-        
-
     async def on_message(self, message):
         '''
         This function is called whenever a message is sent in a channel that the bot can see (including DMs). 
         Currently the bot is configured to only handle messages that are sent over DMs or in your group's "group-#" channel. 
         '''
+        print("this is message = ", message)
         print("this is message content = ", message.content)
         # Ignore messages from the bot 
         if message.author.id == self.user.id:
-            print("DILAN SENRT")
+            print("BOT SENT THIS MESSAGE")
             return
 
         # Check if this message was sent in a server ("guild") or if it's a DM
@@ -83,9 +86,10 @@ class ModBot(discord.Client):
         
 
     async def handle_dm(self, message):
+       
         # Handle a help message
         if message.content == Report.HELP_KEYWORD:
-            print("Dilan we are in trouble! ")
+            # print("Dilan we are in trouble! ")
             reply =  "Use the `report` command to begin the reporting process.\n"
             reply += "Use the `cancel` command to cancel the report process.\n"
             await message.channel.send(reply)
@@ -103,25 +107,50 @@ class ModBot(discord.Client):
             self.reports[author_id] = Report(self)
 
         # Let the report class handle this message; forward all the messages it returns to uss
+        
         responses = await self.reports[author_id].handle_message(message)
         print(responses)
         for r in responses:
             if isinstance(r, str):
                 await message.channel.send(r)
-        
-        # report_state = responses[-1]
-        # print(report_state)
-        # # if report_state == 0:
-        # view = discord.ui.View()
-        # button = discord.ui.Button(label="Click me")
-        # view.add_item(button)
-        # await message.channel.send(view=view)
+
         if self.reports[author_id].report_state == 0:
-            print("YOOOOOOOOO")
-            view = discord.ui.View()
-            button = discord.ui.Button(label="Click me")
-            view.add_item(button)
-            await message.channel.send(view=view)
+            print("YOOOOOOOOO this is message = ", message)
+            view = ConfirmView()
+            # view = discord.ui.View()
+            # button = discord.ui.Button(label="Yes")
+            # button2 = discord.ui.Button(label="No")
+            # async def button_callback(interaction):
+            #     og_res = await interaction.original_response()
+            #     print("THISI SINTERSSCTION original response = ", og_res)
+            # button.callback = button_callback
+            # view.add_item(button)
+            # view.add_item(button2)
+            res = await message.channel.send(view=view)
+            print("THIS IS RES = ", res)
+            res2 = await view.wait()
+            
+            print("This is the button the user clicked = ", view.confirmed)
+            print("This is res = ", res2)
+            # print("THIS IS RES2 = ", res2)
+
+            # interaction, button = await self.wait_for("button_click")
+            # print("THISI SINTERSSCTION = ", interaction)
+            # print("THISI SINTERSSCTION original response = ", interaction.original_response())
+
+            # if view.confirmed is None:
+            #     #nothing was pressed 
+            #     logger.error("Timeout")
+            # elif view.confirmed is True:
+            #     self.on_message
+            #     logger.error("Ok")
+            # elif view.confirmed is False:
+            #     logger.error("Cancelling")
+            
+        if self.reports[author_id].report_state == 1:
+            print("CONFIRMED")
+            # view = SelectReasonView()
+            # await message.channel.send(view=view)
             
 
 
@@ -164,8 +193,43 @@ class ModBot(discord.Client):
         '''
         return "Evaluated: '" + text+ "'"
     
+# class SelectReasonView(discord.ui.View, ModBot):
+#         @discord.ui.button(label="Spam", style=discord.ButtonStyle.primary)
+#         async def spam(self, interaction: discord.Interaction, button: discord.ui.Button):
+#             print("Spam")
 
+#         @discord.ui.button(label="Offensive Content", style=discord.ButtonStyle.secondary)
+#         async def offensive_content(self, interaction: discord.Interaction, button: discord.ui.Button):
+#             print("Offensive")
 
+#         @discord.ui.button(label="Harassment", style=discord.ButtonStyle.secondary)
+#         async def harassment(self, interaction: discord.Interaction, button: discord.ui.Button):
+#             print("harassment")
+
+#         @discord.ui.button(label="Imminent Danger", style=discord.ButtonStyle.secondary)
+#         async def imminent_danger(self, interaction: discord.Interaction, button: discord.ui.Button):
+#             print("imminent_danger")
+
+class ConfirmView(discord.ui.View, ModBot):
+        def __init__(self, *, timeout: float | None = 180, ):
+            super().__init__(timeout=timeout)
+            self.confirmed = None
+        @discord.ui.button(label="Yes", style=discord.ButtonStyle.primary)
+        async def yes(self, interaction: discord.Interaction, button: discord.ui.Button, custom_id="yes"):
+            self.confirmed = True
+            for x in self.children:
+                x.disabled = True
+            # button.disabled = True
+            self.stop()
+            await interaction.response.edit_message(view=self)
+            await interaction.followup.send("You confirmed!")
+
+        @discord.ui.button(label="No", style=discord.ButtonStyle.secondary, custom_id="no")
+        async def no(self, interaction: discord.Interaction, button: discord.ui.Button):
+            print("Clicked no")
+            self.confirmed = False
+            button.disabled = True
+            self.stop()
 
 client = ModBot()
 client.run(discord_token)
