@@ -117,26 +117,11 @@ class ModBot(discord.Client):
         if self.reports[author_id].report_state == 0:
             print("YOOOOOOOOO this is message = ", message)
             view = ConfirmView()
-            # view = discord.ui.View()
-            # button = discord.ui.Button(label="Yes")
-            # button2 = discord.ui.Button(label="No")
-            # async def button_callback(interaction):
-            #     og_res = await interaction.original_response()
-            #     print("THISI SINTERSSCTION original response = ", og_res)
-            # button.callback = button_callback
-            # view.add_item(button)
-            # view.add_item(button2)
-            res = await message.channel.send(view=view)
-            print("THIS IS RES = ", res)
-            res2 = await view.wait()
-            
-            print("This is the button the user clicked = ", view.confirmed)
-            print("This is res = ", res2)
-            # print("THIS IS RES2 = ", res2)
+            await message.channel.send(view=view)
+            await view.wait()
 
-            # interaction, button = await self.wait_for("button_click")
-            # print("THISI SINTERSSCTION = ", interaction)
-            # print("THISI SINTERSSCTION original response = ", interaction.original_response())
+          
+            
 
             # if view.confirmed is None:
             #     #nothing was pressed 
@@ -217,18 +202,21 @@ class ConfirmView(discord.ui.View, ModBot):
         @discord.ui.button(label="Yes", style=discord.ButtonStyle.primary)
         async def yes(self, interaction: discord.Interaction, button: discord.ui.Button, custom_id="yes"):
             self.confirmed = True
-            for x in self.children:
-                x.disabled = True
-            # button.disabled = True
-            self.stop()
+            self.clean_up()
             await interaction.response.edit_message(view=self)
             await interaction.followup.send("You confirmed!")
 
         @discord.ui.button(label="No", style=discord.ButtonStyle.secondary, custom_id="no")
         async def no(self, interaction: discord.Interaction, button: discord.ui.Button):
-            print("Clicked no")
             self.confirmed = False
-            button.disabled = True
+            self.clean_up()
+            await interaction.response.edit_message(view=self)
+            await interaction.followup.send("You confirmed!")
+        
+        def clean_up(self):
+            for x in self.children:
+                x.disabled = True
+            # button.disabled = True
             self.stop()
 
 client = ModBot()

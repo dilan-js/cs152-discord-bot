@@ -1,2 +1,14 @@
 1. Prettify the embed 'Welcome' message! 
 2. Add slash command to start a report 
+3. add a 'no' button to confirm flow and it should restart actions 
+4. change view from never timing out to timing out after 180 and then restarting flow. 
+5. when user cancels after submitting report link, we need to reset user state
+--> I tried this to retrigger flow: 
+  if view.confirmed is True:
+                fake_message = discord.Message()
+                fake_message.content = "cancel" 
+                fake_message.author = self.reports[author_id]
+                fake_message.channel = message.channel 
+                await self.reports[author_id].handle_message(fake_message)
+                await message.channel.send("Report cancelled. Please try again.")
+but that does not seem to work

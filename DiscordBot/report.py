@@ -29,6 +29,8 @@ class Report:
 
         if message.content == self.CANCEL_KEYWORD:
             self.state = State.REPORT_COMPLETE
+            print("THIS IS SELF STATE REPORT COMPLETED = ", self.state)
+            self.report_state = -1
             return ["Report cancelled."]
 
         if message.content == self.CONFIRM_KEYWORDS:
@@ -71,7 +73,7 @@ class Report:
             #         "This is all I know how to do right now - it's up to you to build out the rest of my reporting flow!"]
         
         if self.state == State.MESSAGE_IDENTIFIED:
-            return ["I found this message:", "```" + message.author.name + ": " + message.content + "```" + "Is this the message you are wishing to report? \nClick Yes to continue or click No to enter a new link.", {"report_state": self.report_state}]
+            return ["I found this message:", "```" + message.author.name + ": " + message.content + "```" + "Is this the message you are wishing to report? \nClick Yes to continue or type 'cancel' to enter a new link.", {"report_state": self.report_state}]
             # button = discord.ui.Button(label="Click me")
             # view = discord.ui.View()
             # view.add_item(button)
