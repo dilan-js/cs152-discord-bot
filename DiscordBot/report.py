@@ -15,6 +15,7 @@ class State(Enum):
     AWAITING_BLOCK_USER = auto()
 
 class Report:
+    #class variable
     START_KEYWORD = "report"
     CANCEL_KEYWORD = "cancel"
     HELP_KEYWORD = "help"
@@ -29,13 +30,14 @@ class Report:
     IMM_DANG_REASONS = ["self harm or suicidal intent", "credible threat of violence"]
     BLOCK_USER = "yes"
     DO_NOT_BLOCK_USER = "no"
-    PERP_INFO = {"message_id": None, "channel_id": None, "author_id": None, "author_name": None}
     
 
     def __init__(self, client):
         self.state = State.REPORT_START
         self.client = client
         self.message = None
+        self.PERP_INFO = {"message_id": None, "channel_id": None, "author_id": None, "author_name": None}
+
     
     async def handle_message(self, message):
         '''
@@ -85,7 +87,7 @@ class Report:
             self.PERP_INFO["channel_id"] = message.channel.id
             self.PERP_INFO["author_id"] = message.author.id
             self.PERP_INFO["author_name"] = message.author.name
-            
+
             print('perp info = ', self.PERP_INFO)
             return ["I found this message:", "```" + message.author.name + ": " + message.content + "```", \
                     "Is this the correct message? Type 'yes' to continue or type 'cancel' to restart."]

@@ -66,6 +66,14 @@ class ModBot(discord.Client):
 
         # Check if this message was sent in a server ("guild") or if it's a DM
         if message.guild:
+            #check if perpetrator is in a reports class instance 
+            for reporter, report in self.reports.items():
+                if report.PERP_INFO["author_id"] == message.author.id:
+                    # this person has been reported by a user in this channel
+                    # prevent this person from messaging until mod team figures out what to do
+                    await message.delete()
+                    return await message.channel.send(f"You can't do that, {message.author.mention}")
+                
             await self.handle_channel_message(message)
         else:
             await self.handle_dm(message)

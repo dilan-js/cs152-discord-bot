@@ -20,3 +20,5 @@ but that does not seem to work
 10. do i need a counter to remember user progress in addition to state vars? 
 11. handle else statements for selecting reasons
 12. some of the blocking logic is in report.py PERP_INFO -- needs to be sent to bot.py 
+
+13. SHOULD NOT BE ABLE TO REPORT ONESELF
