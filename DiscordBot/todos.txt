@@ -12,3 +12,10 @@
                 await self.reports[author_id].handle_message(fake_message)
                 await message.channel.send("Report cancelled. Please try again.")
 but that does not seem to work
+6. fix buttons workflow -- doing explicit semantic response rn and will go back and refactor after milestone 2 deadline
+
+7. if they type in wrong text, how do we just quit and restart? 
+8. add embed back in
+9. add in regexes to handle variations of same message i.e. YES vs yes vs yEs etc. 
+10. do i need a counter to remember user progress in addition to state vars? 
+11. handle else statements for selecting reasons
