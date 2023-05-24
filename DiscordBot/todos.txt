@@ -19,3 +19,4 @@ but that does not seem to work
 9. add in regexes to handle variations of same message i.e. YES vs yes vs yEs etc. 
 10. do i need a counter to remember user progress in addition to state vars? 
 11. handle else statements for selecting reasons
+12. some of the blocking logic is in report.py PERP_INFO -- needs to be sent to bot.py 

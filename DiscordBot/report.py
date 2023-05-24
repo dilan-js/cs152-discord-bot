@@ -12,6 +12,7 @@ class State(Enum):
     HARASS_REPORT = auto()
     IMM_DANG_REPORT = auto()
     REPORT_COMPLETE = auto()
+    AWAITING_BLOCK_USER = auto()
 
 class Report:
     START_KEYWORD = "report"
@@ -26,7 +27,10 @@ class Report:
     OFF_CON_REASONS = ["hate speech", "sexually explicit content", "child sexual abuse material", "advocating or glorifying violence", "copyright infringement"]
     HARASS_REASONS = ["bullying", "hate speech directed at me", "unwanted sexual content", "revealing private information"]
     IMM_DANG_REASONS = ["self harm or suicidal intent", "credible threat of violence"]
-
+    BLOCK_USER = "yes"
+    DO_NOT_BLOCK_USER = "no"
+    PERP_INFO = {"message_id": None, "channel_id": None, "author_id": None, "author_name": None}
+    
 
     def __init__(self, client):
         self.state = State.REPORT_START
@@ -55,6 +59,8 @@ class Report:
         if self.state == State.AWAITING_MESSAGE:
             # Parse out the three ID strings from the message link
             m = re.search('/(\d+)/(\d+)/(\d+)', message.content)
+            print("This is m = ", m)
+            
             if not m:
                 return ["I'm sorry, I couldn't read that link. Please try again or say `cancel` to cancel."]
             guild = self.client.get_guild(int(m.group(1)))
@@ -65,11 +71,22 @@ class Report:
                 return ["It seems this channel was deleted or never existed. Please try again or say `cancel` to cancel."]
             try:
                 message = await channel.fetch_message(int(m.group(3)))
+                print(message)
+                print(message.id)
+                print(message.author.id)
+                print(message.author.name)
+                print(message.channel.id)
             except discord.errors.NotFound:
                 return ["It seems this message was deleted or never existed. Please try again or say `cancel` to cancel."]
 
             # Here we've found the message - it's up to you to decide what to do next!
             self.state = State.MESSAGE_IDENTIFIED
+            self.PERP_INFO["message_id"] = message.id
+            self.PERP_INFO["channel_id"] = message.channel.id
+            self.PERP_INFO["author_id"] = message.author.id
+            self.PERP_INFO["author_name"] = message.author.name
+            
+            print('perp info = ', self.PERP_INFO)
             return ["I found this message:", "```" + message.author.name + ": " + message.content + "```", \
                     "Is this the correct message? Type 'yes' to continue or type 'cancel' to restart."]
         
@@ -102,10 +119,14 @@ class Report:
                             ]
                 elif user_msg == 'harassment':
                     self.state = State.HARASS_REPORT
-                    return ["Please select the type of " + user_msg]
+                    return ["Please select the type of " + user_msg, \
+                            "Type: 'Bullying', 'Hate speech directed at me', 'Unwanted sexual content', 'Revealing private information', or type 'cancel' to restart"
+                            ]
                 elif user_msg == 'imminent danger':
                     self.state = State.IMM_DANG_REPORT
-                    return ["Please select the type of " + user_msg]
+                    return ["Please select the type of " + user_msg, \
+                            "Type: 'Self harm or suicidal intent', 'Credible threat of violence', or type 'cancel' to restart"
+                            ]
             else:
                 return ["Oops"]
                
@@ -115,32 +136,55 @@ class Report:
             if user_msg in self.SPAM_REASONS:
                 #add in error handling
                 spam_reason = next((reason for reason in self.SPAM_REASONS if user_msg == reason), ["error"])
-                return ["Thank you for reporting a potential instance of " + spam_reason + ". Our content moderation team will review the message(s) and decide on appropriate action. This may include post and/or account removal."]
+                self.state = State.AWAITING_BLOCK_USER
+                return ["Thank you for reporting a potential instance of " + spam_reason + ". Our content moderation team will review the message(s) and decide on appropriate action. This may include post and/or account removal.", \
+                        "Would you like to block this user to prevent them from sending you more messages in the future? Please type 'Yes' or 'No.'"]
         if self.state == State.OFF_CON_REPORT:
             user_msg = message.content
             user_msg = user_msg.lower()
             if user_msg in self.OFF_CON_REASONS:
+                self.state = State.AWAITING_BLOCK_USER
                 off_con_reason = next((reason for reason in self.OFF_CON_REASONS if user_msg == reason), ["error"])
-                return ["Thank you for reporting a potential instance of " + off_con_reason + ". Our content moderation team will review the message(s) and decide on appropriate action. This may include post and/or account removal."]
+                return ["Thank you for reporting a potential instance of " + off_con_reason + ". Our content moderation team will review the message(s) and decide on appropriate action. This may include post and/or account removal.", \
+                        "Would you like to block this user to prevent them from sending you more messages in the future? Please type 'Yes' or 'No.'"]
         if self.state == State.HARASS_REPORT:
             user_msg = message.content
             user_msg = user_msg.lower()
             if user_msg in self.HARASS_REASONS:
+                self.state = State.AWAITING_BLOCK_USER
                 harass_reason = next((reason for reason in self.HARASS_REASONS if user_msg == reason), ["error"])
-                return ["Thank you for reporting a potential instance of " + harass_reason + ". Our content moderation team will review the message(s) and decide on appropriate action. This may include post and/or account removal."]
+                return ["Thank you for reporting a potential instance of " + harass_reason + ". Our content moderation team will review the message(s) and decide on appropriate action. This may include post and/or account removal.", \
+                        "Would you like to block this user to prevent them from sending you more messages in the future? Please type 'Yes' or 'No.'"
+                        ]
         if self.state == State.IMM_DANG_REPORT:
             user_msg = message.content
             user_msg = user_msg.lower()
             if user_msg in self.IMM_DANG_REASONS:
+                self.state = State.REPORT_COMPLETE
                 imm_dang_reason = next((reason for reason in self.IMM_DANG_REASONS if user_msg == reason), ["error"])
-                return ["Thank you for reporting a potential instance of " + imm_dang_reason + ". Our content moderation team will review the message(s) and decide on appropriate action. This may include post and/or account removal."]
-        
+                return ["Thank you for reporting a potential instance of " + imm_dang_reason + ". Our content moderation team will review the message(s) and decide on appropriate action. This may include notifying local authorities if necessary.", \
+                        "Have a great day!"
+                        ]
 
+        if self.state == State.AWAITING_BLOCK_USER:
+            user_msg = message.content
+            user_msg = user_msg.lower()
+            if user_msg == self.BLOCK_USER:
+                #user blocking logic in here
+                self.state = State.REPORT_COMPLETE
+                return ["Ok. We will block this user." , \
+                        "Have a great day!"]
+            elif user_msg == self.DO_NOT_BLOCK_USER:
+                self.state = State.REPORT_COMPLETE
+                return ["Ok. We will not block this user." , \
+                        "Have a great day!"]
+            else:
+                return ["Oops. Try again!"]
         # if self.state == State.MESSAGE_REASON_IDENTIFIED:
         #     return 
         return []
 
-    def format_message(message):
+    def format_message(self, message):
         user_msg = message.content
         user_msg = user_msg.lower()
         return user_msg
