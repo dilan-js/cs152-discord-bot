@@ -18,6 +18,7 @@ class State(Enum):
     REPORT_CANCELLED = auto()
     AWAITING_BLOCK_USER = auto()
     REVIEW_START = auto()
+    AWAITING_MISINFO = auto()
     EVENT_CLASSIFICATION = auto()
     EVENT_FIX = auto()
     HISTORY_AD = auto()
@@ -50,7 +51,7 @@ class Report:
     MISINFO_CLARITY_REASONS = [["ron desantis' presidential campaign", "presidential campaign", "ron desantis", "ron", "desantis"], 
         ["donald trump trials", "donald trump", "donald", "trump"], 
         ["conflict between russia and ukraine", "russia", "ukraine", "russia ukraine"],
-        ["covid or vaccination", "covid", "vaccinations", "covid-19", "vax"], 
+        ["covid or vaccinations", "covid", "vaccinations", "covid-19", "vax"], 
         ["no"]]
     BLOCK_USER = "yes"
     DO_NOT_BLOCK_USER = "no"
@@ -63,7 +64,7 @@ class Report:
         # self.num_state = 0 #0 = start 
         self.client = client
         self.message = None
-        self.reported_user_info = {"author_id": None, "author_name": None, "message_id": None, "channel_id": None}
+        self.reported_user_info = {"author_id": None, "author_name": None, "message_id": None, "message_content": None, "channel_id": None}
         self.report_type = ""
         self.report_reason = ""
         self.report_clarity_reason = ""
@@ -118,6 +119,7 @@ class Report:
             print("THIS IS MESSAGE BEFORE = ", message.content)
             message.content = message.content.lower().strip()
             print("THIS IS MESSAGE AFTER = ", message.content)
+            self.reported_user_info["message_content"] = message.content
             self.reported_user_info["message_id"] = message.id
             self.reported_user_info["channel_id"] = message.channel.id
             self.reported_user_info["author_id"] = message.author.id
@@ -141,15 +143,7 @@ class Report:
                         "• Other"]
             #else try again?
             else:
-                return ["Sorry! It looks like that was an invalid input.", \
-                        "Please type the reason for reporting this message from the following list:", \
-                        "• Misinformation/Disinformation", \
-                        "• Offensive Content", \
-                        "• Harassment", \
-                        "• Imminent Danger", \
-                        "• Promotes Terrorism", \
-                        "• Spam", \
-                        "• Other"]
+                return ["Sorry! It looks like that we got the wrong message, type 'cancel' to restart."]
 
         if self.state == State.MESSAGE_CONFIRMED:
             #they've confirmed and typed in a reason 
@@ -265,7 +259,7 @@ class Report:
                     return ["Thank you for reporting a potential instance of misinformation/disinformation with regards to " + clarity_reason + ". Our content moderation team will review the message(s) and decide on appropriate action. This may include post and/or account removal.", \
                         "Would you like to take any of the following actions against the advertiser?" ,\
                         "• Do nothing", \
-                        "• Block advertiser"
+                        "• Block"
                         ] 
                 elif user_msg == 'no':
                     self.state = State.AWAITING_MISINFO_CLARITY_OTHER_REASON
@@ -285,7 +279,7 @@ class Report:
                     "Our content moderation team will review the message(s) and decide on appropriate action. This may include post and/or account removal.", \
                     "Would you like to take any of the following actions against the advertiser?" ,\
                     "• Do nothing", \
-                    "• Block advertiser"
+                    "• Block"
                     ] 
           
 
@@ -293,6 +287,7 @@ class Report:
             user_msg = message.content
             print("THIS IS MESSAGE line 279 = ", message)
             user_msg = user_msg.lower()
+            print(user_msg)
             if user_msg in self.BLOCK_ADVERTISER:
                 self.handle_reported_user = "block"
                 self.reporter = {"author_id": message.author.id, "author_name": message.author.name, "message_id": message.id, "channel_id": message.channel.id}
@@ -325,7 +320,6 @@ class Report:
         #     return 
         return []
 
-
     def format_message(self, message):
         user_msg = message.content
         user_msg = user_msg.lower()
@@ -333,7 +327,6 @@ class Report:
     
     def save_report(self):
         db = TinyDB('db.json')
-
 
     def report_complete(self, report):
         db = TinyDB('db.json')
@@ -344,7 +337,6 @@ class Report:
         db.insert({"id": id, "reporter" : reporter, "reported_user": reported_user, "report": report})
         print("saved to db successfully")
         return self.state == State.REPORT_COMPLETE
-    
 
     def report_cancelled(self):
         return self.state == State.REPORT_CANCELLED
