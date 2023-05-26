@@ -17,6 +17,13 @@ class State(Enum):
     REPORT_COMPLETE = auto()
     REPORT_CANCELLED = auto()
     AWAITING_BLOCK_USER = auto()
+    REVIEW_START = auto()
+    EVENT_CLASSIFICATION = auto()
+    EVENT_FIX = auto()
+    HISTORY_AD = auto()
+    HISTORY_REPORT = auto()
+    REVIEW_COMPLETE = auto()
+    REVIEW_CANCELLED = auto()
     AWAITING_MISINFO_CLARITY = auto()
     AWAITING_MISINFO_CLARITY_OTHER_REASON = auto()
 
