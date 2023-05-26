@@ -77,12 +77,13 @@ class ModBot(discord.Client):
 
         # Check if this message was sent in a server ("guild") or if it's a DM
         if message.guild:
-            #check if perpetrator is in a reports class instance 
-            # COME BACK
+            
+            #Prevent blocked user from sending
             user_info = self.usersDB.get(User["author_id"] == message.author.id)
             if user_info:
                 if user_info["ad-block"] == 1:
-                    await message.delete()
+                    message.delete
+
                     return
             #         # this person has been reported by a user in this channel
             #         # prevent this person from messaging until mod team figures out what to do
@@ -176,6 +177,9 @@ class ModBot(discord.Client):
                 adReport = user_info["ad-report"] + 1
                 self.usersDB.update({"ad-report": adReport}, User["author_id"] == curr_report.reported_user_info["author_id"])
             
+            if curr_report.handle_reported_user == 'block':
+                dm_channel = await self.create_dm(await self.fetch_user(curr_report.reported_user_info["author_id"]))
+                await dm_channel.send("You have been blocked by a user because they believed your ads spread misinformation")
 
             
             # Get Mod Channel
@@ -216,7 +220,7 @@ class ModBot(discord.Client):
                 for i in range(self.db.count(User["id"] >= 0)):
                     self.current_report = self.db.get(User["id"] >= 0)
                     if 'covid' in str(self.current_report["report"]["report_clarity_reason"]):
-                        break 
+                        break
                 if self.current_report != None :
                     report_user = self.usersDB.get(User["author_id"] == self.current_report["reporter"]["author_id"])
                     ad_user = self.usersDB.get(User["author_id"] == self.current_report["reported_user"]["author_id"])
@@ -234,6 +238,7 @@ class ModBot(discord.Client):
                 self.current_review = None
             
             elif self.current_review.review_complete():
+                # Bad ad w/ history
                 if self.current_review.final_state == 0:
                     ad_info = self.usersDB.get(User["author_id"] == self.current_report["reported_user"]["author_id"])
                     adFalse = ad_info["ad-false"] + 1
@@ -246,13 +251,10 @@ class ModBot(discord.Client):
                                 partial_message = channel.get_partial_message(self.current_report["reported_user"]["message_id"])
                                 await channel.delete_messages([partial_message])
 
-                    ad_user = await self.get_user(self.current_report["reported_user"]["author_id"])
-                    dm_channel = await self.create_dm(ad_user)
-                    await dm_channel.send("Your ad has been removed for misinformation. Visit <link to \n \
-                                   accurate source> to learn more. Due to your history of advertising \n \
-                                   misinformation, your account has been temporarily banned. Our \n \
-                                   moderator team will  review the situation.")
+                    dm_channel = await self.create_dm(await self.fetch_user(self.current_report["reported_user"]["author_id"]))
+                    await dm_channel.send("Your ad has been removed for misinformation. Visit <link to \n accurate source> to learn more. Due to your history of advertising \n misinformation, your account has been temporarily banned. Our \n moderator team will  review the situation.")
 
+                # Bad ad w/o histrory
                 if self.current_review.final_state == 1:
                     ad_info = self.usersDB.get(User["author_id"] == self.current_report["reported_user"]["author_id"])
                     adFalse = ad_info["ad-false"] + 1
@@ -263,26 +265,22 @@ class ModBot(discord.Client):
                             if channel.name == f'group-{self.group_num}':
                                 partial_message = channel.get_partial_message(self.current_report["reported_user"]["message_id"])
                                 await channel.delete_messages([partial_message])
+                                pass
 
-                    ad_user = await self.get_user(self.current_report["reported_user"]["author_id"])
-                    dm_channel = await ad_user.create_dm()
-                    await dm_channel.send("Your ad has been removed for misinformation. Visit <link to \n \
-                                    accurate source> to learn more. If this problem persists, your \n \
-                                    account will be banned.")
+                    dm_channel = await self.create_dm(await self.fetch_user(self.current_report["reported_user"]["author_id"]))
+                    await dm_channel.send("Your ad has been removed for misinformation. Visit <link to \n accurate source> to learn more. If this problem persists, your \n account will be banned.")
                     
+                # Bad report w/ histrory
                 if self.current_review.final_state == 2:
                     user_info = self.usersDB.get(User["author_id"] == self.current_report["reporter"]["author_id"])
                     userFalse = user_info["user-false"] + 1
                     userBan = 1
                     self.usersDB.update({"user-false": userFalse, "user-ban" : userBan}, User["author_id"] == self.current_report["reporter"]["author_id"])
 
-                    dm_channel = self.get_all_channels()
-                    self.channels.cache(self.current_report["reporter"]["channel_id"])
-                    await dm_channel.send("The ad that you reported is not misinformation. Due to your \n \
-                                    history of false reporting, you will be temporarily banned from \n \
-                                    reporting advertisements. Our moderator team will  review the \n \
-                                    situation.")
+                    dm_channel = self.get_partial_messageable(self.current_report["reporter"]["channel_id"])
+                    await dm_channel.send("The ad that you reported is not misinformation. Due to your \n history of false reporting, you will be temporarily banned from \n reporting advertisements. Our moderator team will  review the \n situation.")
 
+                # Bad report w/o histrory
                 if self.current_review.final_state == 3:
                     user_info = self.usersDB.get(User["author_id"] == self.current_report["reporter"]["author_id"])
                     userFalse = user_info["user-false"] + 1

@@ -259,7 +259,7 @@ class Report:
                     return ["Thank you for reporting a potential instance of misinformation/disinformation with regards to " + clarity_reason + ". Our content moderation team will review the message(s) and decide on appropriate action. This may include post and/or account removal.", \
                         "Would you like to take any of the following actions against the advertiser?" ,\
                         "• Do nothing", \
-                        "• Block advertiser"
+                        "• Block"
                         ] 
                 elif user_msg == 'no':
                     self.state = State.AWAITING_MISINFO_CLARITY_OTHER_REASON
@@ -279,7 +279,7 @@ class Report:
                     "Our content moderation team will review the message(s) and decide on appropriate action. This may include post and/or account removal.", \
                     "Would you like to take any of the following actions against the advertiser?" ,\
                     "• Do nothing", \
-                    "• Block advertiser"
+                    "• Block"
                     ] 
           
 
@@ -287,6 +287,7 @@ class Report:
             user_msg = message.content
             print("THIS IS MESSAGE line 279 = ", message)
             user_msg = user_msg.lower()
+            print(user_msg)
             if user_msg in self.BLOCK_ADVERTISER:
                 self.handle_reported_user = "block"
                 self.reporter = {"author_id": message.author.id, "author_name": message.author.name, "message_id": message.id, "channel_id": message.channel.id}
