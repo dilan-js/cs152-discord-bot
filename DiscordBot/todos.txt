@@ -30,3 +30,7 @@ Main todos:
 1. Implement user flow as diagram shows
 2. Implement database --> multiple reports by the user. need outcome of report.
 3. Person cannot report themselves 
+
+reporter
+reported
+report
