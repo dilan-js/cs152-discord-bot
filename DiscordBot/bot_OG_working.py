@@ -7,10 +7,9 @@ import logging
 import re
 import requests
 from report import Report
-from report import State
 import pdb
 
- # Set up logging to the console
+# Set up logging to the console
 logger = logging.getLogger('discord')
 logger.setLevel(logging.DEBUG)
 handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
@@ -61,18 +60,19 @@ class ModBot(discord.Client):
         This function is called whenever a message is sent in a channel that the bot can see (including DMs). 
         Currently the bot is configured to only handle messages that are sent over DMs or in your group's "group-#" channel. 
         '''
-        
         # Ignore messages from the bot 
         if message.author.id == self.user.id:
             return
 
         # Check if this message was sent in a server ("guild") or if it's a DM
         if message.guild:
+            print("In line 69 w/message = ", message)
             #check if perpetrator is in a reports class instance 
             for reporter, report in self.reports.items():
                 if report.PERP_INFO["author_id"] == message.author.id:
                     # this person has been reported by a user in this channel
                     # prevent this person from messaging until mod team figures out what to do
+                    print("This person has been reported before!",  message.author.id, report.PERP_INFO["author_id"]  )
                     await message.delete()
                     return await message.channel.send(f"You can't do that, {message.author.mention}")
                 
@@ -97,43 +97,16 @@ class ModBot(discord.Client):
 
         # If we don't currently have an active report for this user, add one
         if author_id not in self.reports:
-            new_report = Report(self)
-            reports_per_author = []
-            reports_per_author.append(new_report)
-            self.reports[author_id] = reports_per_author
             self.reports[author_id] = Report(self)
-        # else:
-        #     #we do have an active report!!! 
-        #     # DILAN COME BACK TO THIS
-        #     return
+
         # Let the report class handle this message; forward all the messages it returns to uss
         responses = await self.reports[author_id].handle_message(message)
-        CURRENT_REPORT = self.reports[author_id]
-
-        if CURRENT_REPORT.state == State.REPORT_CANCELLED:
-            #write to database
-            print("report cancelled")
-
         for r in responses:
             await message.channel.send(r)
 
-
-        # print("THIS IS CURRENT REPORT.state" , CURRENT_REPORT.state)
-        # if CURRENT_REPORT.state == State.MESSAGE_IDENTIFIED:
-        #     print("STiha;lefh;aelfh")
-        #     view = ConfirmView()
-        #     await message.channel.send(view=view)
-        #     await view.wait()
-
-        # view = Confirm_View()
         # If the report is complete or cancelled, remove it from our map
-        if self.reports[author_id].state == State.REPORT_CANCELLED:
-            self.reports[author_id].report_cancelled()
+        if self.reports[author_id].report_complete():
             self.reports.pop(author_id)
-        elif self.reports[author_id].report_complete():
-            # ADD TO DB!
-            self.reports.pop(author_id)
-        
 
     async def handle_channel_message(self, message):
         # Only handle messages sent in the "group-#" channel
@@ -163,30 +136,6 @@ class ModBot(discord.Client):
         '''
         return "Evaluated: '" + text+ "'"
 
-class ConfirmView(discord.ui.View):
-        def __init__(self, *, timeout: float | None = 180, ):
-            super().__init__(timeout=timeout)
-            self.confirmed = None
-        @discord.ui.button(label="Yes", style=discord.ButtonStyle.primary)
-        async def yes(self, interaction: discord.Interaction, button: discord.ui.Button, custom_id="yes"):
-            self.confirmed = True
-            self.clean_up()
-            await interaction.response.edit_message(view=self)
-            await interaction.followup.send("You confirmed!")
 
-        @discord.ui.button(label="No", style=discord.ButtonStyle.secondary, custom_id="no")
-        async def no(self, interaction: discord.Interaction, button: discord.ui.Button):
-            self.confirmed = False
-            self.clean_up()
-            await interaction.response.edit_message(view=self)
-            await interaction.followup.send("You did not confirm. Please try again.")
-        
-        def clean_up(self):
-            for x in self.children:
-                x.disabled = True
-            # button.disabled = True
-            self.stop()
 client = ModBot()
 client.run(discord_token)
-
-

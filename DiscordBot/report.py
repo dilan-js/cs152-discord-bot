@@ -3,15 +3,16 @@ import discord
 import re
 
 class State(Enum):
-    REPORT_START = auto()
-    AWAITING_MESSAGE = auto()
-    MESSAGE_IDENTIFIED = auto()
-    MESSAGE_CONFIRMED = auto()
+    REPORT_START = auto() #1
+    AWAITING_MESSAGE = auto() # 2
+    MESSAGE_IDENTIFIED = auto() # 3
+    MESSAGE_CONFIRMED = auto() # 4
     SPAM_REPORT = auto()
     OFF_CON_REPORT = auto()
     HARASS_REPORT = auto()
     IMM_DANG_REPORT = auto()
     REPORT_COMPLETE = auto()
+    REPORT_CANCELLED = auto()
     AWAITING_BLOCK_USER = auto()
 
 class Report:
@@ -34,6 +35,7 @@ class Report:
 
     def __init__(self, client):
         self.state = State.REPORT_START
+        # self.num_state = 0 #0 = start 
         self.client = client
         self.message = None
         self.PERP_INFO = {"message_id": None, "channel_id": None, "author_id": None, "author_name": None}
@@ -47,7 +49,7 @@ class Report:
         '''
 
         if message.content == self.CANCEL_KEYWORD:
-            self.state = State.REPORT_COMPLETE
+            self.state = State.REPORT_CANCELLED
             return ["Report cancelled."]
         
         if self.state == State.REPORT_START:
@@ -83,6 +85,9 @@ class Report:
 
             # Here we've found the message - it's up to you to decide what to do next!
             self.state = State.MESSAGE_IDENTIFIED
+            print("THIS IS MESSAGE BEFORE = ", message.content)
+            message.content = message.content.lower().strip()
+            print("THIS IS MESSAGE AFTER = ", message.content)
             self.PERP_INFO["message_id"] = message.id
             self.PERP_INFO["channel_id"] = message.channel.id
             self.PERP_INFO["author_id"] = message.author.id
@@ -94,7 +99,7 @@ class Report:
         
         if self.state == State.MESSAGE_IDENTIFIED:
             #handle here for words that we do not expect, set self.state = State.REPORT_COMPLETE return ["Report cancelled."]
-            if message.content == 'yes' or message.content == 'Yes' or message.content == 'YES':
+            if message.content == 'yes':
                 self.state = State.MESSAGE_CONFIRMED
                 return ["Please type the reason for reporting this message from the following list:", \
                     "'Spam', 'Offensive Content', 'Harassment', 'Imminent Danger' or type 'cancel' to restart"]
@@ -193,6 +198,10 @@ class Report:
 
     def report_complete(self):
         return self.state == State.REPORT_COMPLETE
+    
+
+    def report_cancelled(self):
+        return self.state == State.REPORT_CANCELLED
     
 
 

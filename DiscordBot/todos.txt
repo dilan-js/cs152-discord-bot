@@ -22,3 +22,11 @@ but that does not seem to work
 12. some of the blocking logic is in report.py PERP_INFO -- needs to be sent to bot.py 
 
 13. SHOULD NOT BE ABLE TO REPORT ONESELF
+
+
+
+
+Main todos: 
+1. Implement user flow as diagram shows
+2. Implement database --> multiple reports by the user. 
+3. Person cannot report themselves 
