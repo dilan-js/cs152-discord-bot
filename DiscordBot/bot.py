@@ -131,7 +131,19 @@ class ModBot(discord.Client):
         if self.reports[author_id].state == State.REPORT_CANCELLED:
             self.reports[author_id].report_cancelled()
             self.reports.pop(author_id)
-        elif self.reports[author_id].report_complete():
+        elif self.reports[author_id].state == State.REPORT_COMPLETE:
+            curr_report = self.reports[author_id]
+            print(curr_report.reported_user_info, curr_report.report_type, curr_report.report_reason, curr_report.report_clarity_reason, curr_report.handle_reported_user, curr_report.reporter)
+            
+            # print(curr_report["reporter"]["previous_reports"])
+            # prev_reports =  curr_report["reporter"]["previous_reports"]
+            # if len(prev_reports) == 0:
+            #     prev_reports = []
+            #     prev_reports.append(self.reports[author_id])
+            #     curr_report["reporter"]["previous_reports"] = prev_reports
+            # else:
+            #     prev_reports.append(self.reports[author_id])
+            self.reports[author_id].report_complete(curr_report)
             # ADD TO DB!
             self.reports.pop(author_id)
         

@@ -1,6 +1,8 @@
 from enum import Enum, auto
 import discord
 import re
+from tinydb import TinyDB, Query
+import random
 
 class State(Enum):
     REPORT_START = auto() #1
@@ -34,11 +36,11 @@ class Report:
     OFF_CON_REASONS = ["hate speech", "sexually explicit content", "child sexual abuse material", "advocating or glorifying violence", "copyright infringement"]
     HARASS_REASONS = ["bullying", "hate speech directed at me", "unwanted sexual content", "revealing private information"]
     IMM_DANG_REASONS = ["self harm or suicidal intent", "credible threat of violence"]
-    MISINFO_CLARITY_REASON_ELECTION = ["ron desantis", "presidential campaign", "ron desantis", "ron", "desantis"]
-    MISINFO_CLARITY_REASON_DONALD = ["donald trump trials", "donald trump", "donald", "trump"]
-    MISINFO_CLARITY_REASON_RUSSIA = ["conflict between russia and ukraine", "russia", "ukraine", "russia ukraine"]
-    MISINFO_CLARITY_REASON_COVID = ["covid or vaccination", "covid", "vaccinations", "covid-19", "vax"]
-    MISINFO_CLARITY_REASONS = [["ron desantis", "presidential campaign", "ron desantis", "ron", "desantis"], 
+    # MISINFO_CLARITY_REASON_ELECTION = ["ron desantis", "presidential campaign", "ron desantis", "ron", "desantis"]
+    # MISINFO_CLARITY_REASON_DONALD = ["donald trump trials", "donald trump", "donald", "trump"]
+    # MISINFO_CLARITY_REASON_RUSSIA = ["conflict between russia and ukraine", "russia", "ukraine", "russia ukraine"]
+    # MISINFO_CLARITY_REASON_COVID = ["covid or vaccination", "covid", "vaccinations", "covid-19", "vax"]
+    MISINFO_CLARITY_REASONS = [["ron desantis' presidential campaign", "presidential campaign", "ron desantis", "ron", "desantis"], 
         ["donald trump trials", "donald trump", "donald", "trump"], 
         ["conflict between russia and ukraine", "russia", "ukraine", "russia ukraine"],
         ["covid or vaccination", "covid", "vaccinations", "covid-19", "vax"], 
@@ -54,9 +56,13 @@ class Report:
         # self.num_state = 0 #0 = start 
         self.client = client
         self.message = None
-        self.PERP_INFO = {"message_id": None, "channel_id": None, "author_id": None, "author_name": None}
-        self.report_reason = None
-        self.report_clarity_reason = None
+        self.reported_user_info = {"author_id": None, "author_name": None, "message_id": None, "channel_id": None}
+        self.report_type = ""
+        self.report_reason = ""
+        self.report_clarity_reason = ""
+        self.handle_reported_user = ""
+        prev_reports = []
+        self.reporter = {"author_id": None, "author_name": None, "message_id": None, "channel_id": None}
     
     async def handle_message(self, message):
         '''
@@ -105,12 +111,12 @@ class Report:
             print("THIS IS MESSAGE BEFORE = ", message.content)
             message.content = message.content.lower().strip()
             print("THIS IS MESSAGE AFTER = ", message.content)
-            self.PERP_INFO["message_id"] = message.id
-            self.PERP_INFO["channel_id"] = message.channel.id
-            self.PERP_INFO["author_id"] = message.author.id
-            self.PERP_INFO["author_name"] = message.author.name
+            self.reported_user_info["message_id"] = message.id
+            self.reported_user_info["channel_id"] = message.channel.id
+            self.reported_user_info["author_id"] = message.author.id
+            self.reported_user_info["author_name"] = message.author.name
 
-            print('perp info = ', self.PERP_INFO)
+            print('perp info = ', self.reported_user_info)
             return ["I found this message:", "```" + message.author.name + ": " + message.content + "```", \
                     "Is this the correct message? Type 'yes' to continue or type 'cancel' to restart."]
         
@@ -150,6 +156,7 @@ class Report:
                 if user_msg in self.MISINFORMATION_REASON:
                     print("found misinformation")
                     self.state = State.MISINFORMATION_REPORT
+                    self.report_type = "misinformation"
                     return ["Please type out the type of " + user_msg, \
                             "• Manipulated content", \
                             "• Impersonation of other sources", \
@@ -162,19 +169,23 @@ class Report:
                 
                 elif user_msg == 'spam':
                     print("FOUND SPAM")
+                    self.report_type = "spam"
                     self.state = State.SPAM_REPORT
                     return ["Please select the type of " + user_msg]
                 elif user_msg == 'offensive content':
                     self.state = State.OFF_CON_REPORT
+                    self.report_type = "offensive content"
                     return ["Please select the type of " + user_msg, \
                             "Type: 'Hate Speech', 'Sexually explicit content', 'Child sexual abuse material', 'Advocating or glorifying violence', 'Copyright infringement', or type 'cancel' to restart"
                             ]
                 elif user_msg == 'harassment':
+                    self.report_type = "harassment"
                     self.state = State.HARASS_REPORT
                     return ["Please select the type of " + user_msg, \
                             "Type: 'Bullying', 'Hate speech directed at me', 'Unwanted sexual content', 'Revealing private information', or type 'cancel' to restart"
                             ]
                 elif user_msg == 'imminent danger':
+                    self.report_type = "imminent danger"
                     self.state = State.IMM_DANG_REPORT
                     return ["Please select the type of " + user_msg, \
                             "Type: 'Self harm or suicidal intent', 'Credible threat of violence', or type 'cancel' to restart"
@@ -273,22 +284,32 @@ class Report:
 
         if self.state == State.AWAITING_BLOCK_USER:
             user_msg = message.content
+            print("THIS IS MESSAGE line 279 = ", message)
             user_msg = user_msg.lower()
             if user_msg in self.BLOCK_ADVERTISER:
+                self.handle_reported_user = "block"
+                self.reporter = {"author_id": message.author.id, "author_name": message.author.name, "message_id": message.id, "channel_id": message.channel.id}
                 self.state = State.REPORT_COMPLETE
                 return ["Ok, you got it! We will block this advertiser from communicating with you.", \
                         "Have a great day!"]
             elif user_msg in self.DO_NOTHING:
+                self.handle_reported_user = "do nothing"
                 self.state = State.REPORT_COMPLETE
+                self.reporter = {"author_id": message.author.id, "author_name": message.author.name, "message_id": message.id, "channel_id": message.channel.id}
+                print("THIS IS SELF.REPORTER = ", self.reporter)
                 return ["Ok, you got it! We will do nothing. Your report will still be reviewed!", \
                         "Have a great day!"]
             elif user_msg == self.BLOCK_USER:
+                self.handle_reported_user = "block"
                 #user blocking logic in here
                 self.state = State.REPORT_COMPLETE
+                self.reporter = {"author_id": message.author.id, "author_name": message.author.name, "message_id": message.id, "channel_id": message.channel.id}
                 return ["Ok. We will block this user." , \
                         "Have a great day!"]
             elif user_msg == self.DO_NOT_BLOCK_USER:
+                self.handle_reported_user = "do nothing"
                 self.state = State.REPORT_COMPLETE
+                self.reporter = {"author_id": message.author.id, "author_name": message.author.name, "message_id": message.id, "channel_id": channel.id}
                 return ["Ok. We will not block this user." , \
                         "Have a great day!"]
             else:
@@ -297,12 +318,24 @@ class Report:
         #     return 
         return []
 
+
     def format_message(self, message):
         user_msg = message.content
         user_msg = user_msg.lower()
         return user_msg
+    
+    def save_report(self):
+        db = TinyDB('db.json')
 
-    def report_complete(self):
+
+    def report_complete(self, report):
+        db = TinyDB('db.json')
+        id = random.randint(0, 1200) 
+        reported_user = self.reported_user_info
+        report = {"report_type": self.report_type, "report_reason": self.report_reason, "report_clarity_reason": self.report_clarity_reason, "report_resolution": self.handle_reported_user}
+        reporter = self.reporter
+        db.insert({"id": id, "reporter" : reporter, "reported_user": reported_user, "report": report})
+        print("saved to db successfully")
         return self.state == State.REPORT_COMPLETE
     
 
