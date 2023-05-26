@@ -69,6 +69,7 @@ class ModBot(discord.Client):
         # Check if this message was sent in a server ("guild") or if it's a DM
         if message.guild:
             #check if perpetrator is in a reports class instance 
+            # COME BACK
             for reporter, report in self.reports.items():
                 if report.PERP_INFO["author_id"] == message.author.id:
                     # this person has been reported by a user in this channel

@@ -7,6 +7,7 @@ class State(Enum):
     AWAITING_MESSAGE = auto() # 2
     MESSAGE_IDENTIFIED = auto() # 3
     MESSAGE_CONFIRMED = auto() # 4
+    MISINFORMATION_REPORT = auto()
     SPAM_REPORT = auto()
     OFF_CON_REPORT = auto()
     HARASS_REPORT = auto()
@@ -14,6 +15,8 @@ class State(Enum):
     REPORT_COMPLETE = auto()
     REPORT_CANCELLED = auto()
     AWAITING_BLOCK_USER = auto()
+    AWAITING_MISINFO_CLARITY = auto()
+    AWAITING_MISINFO_CLARITY_OTHER_REASON = auto()
 
 class Report:
     #class variable
@@ -21,16 +24,29 @@ class Report:
     CANCEL_KEYWORD = "cancel"
     HELP_KEYWORD = "help"
     MESSAGE_CONFIRMED = "yes"
+    MISINFORMATION_REASON = ['misinformation/disinformation', 'misinformation', 'disinformation', 'mis-disinformation']
     SPAM_REASON = "spam"
     OFF_CON_REASON = "offensive content"
     HARASS_REASON = "harassment"
     IMM_DANG_REASON = "imminent danger"
+    MISINFORMATION_REASONS = ["manipulated content", "impersonation of other sources", "reporting error", "scam", "untrue/false", "satire/parody", "propaganda"]
     SPAM_REASONS = ["fraud/scam", "solicitation", "impersonation"]
     OFF_CON_REASONS = ["hate speech", "sexually explicit content", "child sexual abuse material", "advocating or glorifying violence", "copyright infringement"]
     HARASS_REASONS = ["bullying", "hate speech directed at me", "unwanted sexual content", "revealing private information"]
     IMM_DANG_REASONS = ["self harm or suicidal intent", "credible threat of violence"]
+    MISINFO_CLARITY_REASON_ELECTION = ["ron desantis", "presidential campaign", "ron desantis", "ron", "desantis"]
+    MISINFO_CLARITY_REASON_DONALD = ["donald trump trials", "donald trump", "donald", "trump"]
+    MISINFO_CLARITY_REASON_RUSSIA = ["conflict between russia and ukraine", "russia", "ukraine", "russia ukraine"]
+    MISINFO_CLARITY_REASON_COVID = ["covid or vaccination", "covid", "vaccinations", "covid-19", "vax"]
+    MISINFO_CLARITY_REASONS = [["ron desantis", "presidential campaign", "ron desantis", "ron", "desantis"], 
+        ["donald trump trials", "donald trump", "donald", "trump"], 
+        ["conflict between russia and ukraine", "russia", "ukraine", "russia ukraine"],
+        ["covid or vaccination", "covid", "vaccinations", "covid-19", "vax"], 
+        ["no"]]
     BLOCK_USER = "yes"
     DO_NOT_BLOCK_USER = "no"
+    BLOCK_ADVERTISER = ["block advertiser", "block"]
+    DO_NOTHING = ["nothing", "do nothing"]
     
 
     def __init__(self, client):
@@ -39,7 +55,8 @@ class Report:
         self.client = client
         self.message = None
         self.PERP_INFO = {"message_id": None, "channel_id": None, "author_id": None, "author_name": None}
-
+        self.report_reason = None
+        self.report_clarity_reason = None
     
     async def handle_message(self, message):
         '''
@@ -102,20 +119,48 @@ class Report:
             if message.content == 'yes':
                 self.state = State.MESSAGE_CONFIRMED
                 return ["Please type the reason for reporting this message from the following list:", \
-                    "'Spam', 'Offensive Content', 'Harassment', 'Imminent Danger' or type 'cancel' to restart"]
+                        "• Misinformation/Disinformation", \
+                        "• Offensive Content", \
+                        "• Harassment", \
+                        "• Imminent Danger", \
+                        "• Promotes Terrorism", \
+                        "• Spam", \
+                        "• Other"]
             #else try again?
             else:
                 return ["Sorry! It looks like that was an invalid input.", \
                         "Please type the reason for reporting this message from the following list:", \
-                        "'Spam', 'Offensive Content', 'Harassment', 'Imminent Danger' or type 'cancel' to restart"]
+                        "• Misinformation/Disinformation", \
+                        "• Offensive Content", \
+                        "• Harassment", \
+                        "• Imminent Danger", \
+                        "• Promotes Terrorism", \
+                        "• Spam", \
+                        "• Other"]
 
         if self.state == State.MESSAGE_CONFIRMED:
             #they've confirmed and typed in a reason 
             user_msg = message.content
             user_msg = user_msg.lower()
+            user_msg = user_msg.strip()
+            print("THIS IS USER MSG = ", user_msg)
             reasons = [self.SPAM_REASON, self.OFF_CON_REASON, self.HARASS_REASON, self.IMM_DANG_REASON]
-            if user_msg in reasons:
-                if user_msg == 'spam':
+            if user_msg in reasons or user_msg in self.MISINFORMATION_REASON:
+                print("FOUND IN LINE 145")
+                if user_msg in self.MISINFORMATION_REASON:
+                    print("found misinformation")
+                    self.state = State.MISINFORMATION_REPORT
+                    return ["Please type out the type of " + user_msg, \
+                            "• Manipulated content", \
+                            "• Impersonation of other sources", \
+                            "• Reporting Error", \
+                            "• Scam", \
+                            "• Untrue/False", \
+                            "• Satire/Parody", \
+                            "• Propaganda"
+                            ]
+                
+                elif user_msg == 'spam':
                     print("FOUND SPAM")
                     self.state = State.SPAM_REPORT
                     return ["Please select the type of " + user_msg]
@@ -135,9 +180,26 @@ class Report:
                             "Type: 'Self harm or suicidal intent', 'Credible threat of violence', or type 'cancel' to restart"
                             ]
             else:
-                return ["Oops"]
+                return ["Invalid input. Please type 'cancel' and try again."]
                
-        if self.state == State.SPAM_REPORT:
+        if self.state == State.MISINFORMATION_REPORT:
+            user_msg = message.content
+            user_msg = user_msg.lower()
+            user_msg = user_msg.strip()
+            if user_msg in self.MISINFORMATION_REASONS:
+                misinfo_reason = next((reason for reason in self.MISINFORMATION_REASONS if user_msg == reason), ["error"])
+                self.report_reason = misinfo_reason
+                #ADD IN DB 
+                self.state = State.AWAITING_MISINFO_CLARITY
+                return ["Thank you for reporting a potential instance of " + misinfo_reason + ".", \
+                        "Is it related to any of the following?", \
+                        "• Ron DeSantis' presidential campaign", \
+                        "• Donald Trump trials", \
+                        "• Conflict between Russia and Ukraine", \
+                        "• COVID or vaccinations", \
+                        "• No", \
+                        ]
+        elif self.state == State.SPAM_REPORT:
             user_msg = message.content
             user_msg = user_msg.lower()
             if user_msg in self.SPAM_REASONS:
@@ -146,7 +208,7 @@ class Report:
                 self.state = State.AWAITING_BLOCK_USER
                 return ["Thank you for reporting a potential instance of " + spam_reason + ". Our content moderation team will review the message(s) and decide on appropriate action. This may include post and/or account removal.", \
                         "Would you like to block this user to prevent them from sending you more messages in the future? Please type 'Yes' or 'No.'"]
-        if self.state == State.OFF_CON_REPORT:
+        elif self.state == State.OFF_CON_REPORT:
             user_msg = message.content
             user_msg = user_msg.lower()
             if user_msg in self.OFF_CON_REASONS:
@@ -154,7 +216,7 @@ class Report:
                 off_con_reason = next((reason for reason in self.OFF_CON_REASONS if user_msg == reason), ["error"])
                 return ["Thank you for reporting a potential instance of " + off_con_reason + ". Our content moderation team will review the message(s) and decide on appropriate action. This may include post and/or account removal.", \
                         "Would you like to block this user to prevent them from sending you more messages in the future? Please type 'Yes' or 'No.'"]
-        if self.state == State.HARASS_REPORT:
+        elif self.state == State.HARASS_REPORT:
             user_msg = message.content
             user_msg = user_msg.lower()
             if user_msg in self.HARASS_REASONS:
@@ -163,7 +225,7 @@ class Report:
                 return ["Thank you for reporting a potential instance of " + harass_reason + ". Our content moderation team will review the message(s) and decide on appropriate action. This may include post and/or account removal.", \
                         "Would you like to block this user to prevent them from sending you more messages in the future? Please type 'Yes' or 'No.'"
                         ]
-        if self.state == State.IMM_DANG_REPORT:
+        elif self.state == State.IMM_DANG_REPORT:
             user_msg = message.content
             user_msg = user_msg.lower()
             if user_msg in self.IMM_DANG_REASONS:
@@ -173,10 +235,54 @@ class Report:
                         "Have a great day!"
                         ]
 
+        if self.state == State.AWAITING_MISINFO_CLARITY:
+            user_msg = message.content
+            user_msg = user_msg.lower()
+            user_msg = user_msg.strip()
+            for reason_section in self.MISINFO_CLARITY_REASONS:
+                if user_msg in reason_section and user_msg != 'no':
+                    clarity_reason = next((reason for reason in reason_section if user_msg == reason), ["error"])
+                    self.report_clarity_reason = clarity_reason
+                    self.state = State.AWAITING_BLOCK_USER #here we could add 'other' functionality and just retrieve user message.content and tell them to write out their 'other'
+                    return ["Thank you for reporting a potential instance of misinformation/disinformation with regards to " + clarity_reason + ". Our content moderation team will review the message(s) and decide on appropriate action. This may include post and/or account removal.", \
+                        "Would you like to take any of the following actions against the advertiser?" ,\
+                        "• Do nothing", \
+                        "• Block advertiser"
+                        ] 
+                elif user_msg == 'no':
+                    self.state = State.AWAITING_MISINFO_CLARITY_OTHER_REASON
+                    return ["It seems none of the mentioned topics fit the reason you are reporting this content. Please type out what topic this piece of misinformation is regarding or type 'No'"]
+               
+        if self.state == State.AWAITING_MISINFO_CLARITY_OTHER_REASON:
+            user_msg = message.content
+            user_msg = user_msg.lower()
+            user_msg = user_msg.strip()
+            if 'no' in user_msg:
+                self.state = State.AWAITING_BLOCK_USER
+            elif user_msg:
+                self.state = State.AWAITING_BLOCK_USER
+                self.report_clarity_reason = user_msg  
+            return ["Thank you for reporting a potential instance of misinformation/disinformation with regards to ", \
+                    "```" + user_msg + "```", \
+                    "Our content moderation team will review the message(s) and decide on appropriate action. This may include post and/or account removal.", \
+                    "Would you like to take any of the following actions against the advertiser?" ,\
+                    "• Do nothing", \
+                    "• Block advertiser"
+                    ] 
+          
+
         if self.state == State.AWAITING_BLOCK_USER:
             user_msg = message.content
             user_msg = user_msg.lower()
-            if user_msg == self.BLOCK_USER:
+            if user_msg in self.BLOCK_ADVERTISER:
+                self.state = State.REPORT_COMPLETE
+                return ["Ok, you got it! We will block this advertiser from communicating with you.", \
+                        "Have a great day!"]
+            elif user_msg in self.DO_NOTHING:
+                self.state = State.REPORT_COMPLETE
+                return ["Ok, you got it! We will do nothing. Your report will still be reviewed!", \
+                        "Have a great day!"]
+            elif user_msg == self.BLOCK_USER:
                 #user blocking logic in here
                 self.state = State.REPORT_COMPLETE
                 return ["Ok. We will block this user." , \
