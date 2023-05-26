@@ -1,3 +1,12 @@
-2023-05-26 01:17:37,979:WARNING:discord.client: PyNaCl is not installed, voice will NOT be supported
-2023-05-26 01:17:37,979:INFO:discord.client: logging in using static token
-2023-05-26 01:17:38,616:INFO:discord.gateway: Shard ID None has connected to Gateway (Session ID: 38a9b4cbea191c9bde111ae6c65e86e3).
+2023-05-26 04:22:59,412:WARNING:discord.client: PyNaCl is not installed, voice will NOT be supported
+2023-05-26 04:22:59,412:INFO:discord.client: logging in using static token
+2023-05-26 04:23:00,042:INFO:discord.gateway: Shard ID None has connected to Gateway (Session ID: a5ee6b5dc9461cdfde9755b7bb0aa7e0).
+2023-05-26 04:25:53,495:ERROR:discord.client: Ignoring exception in on_message
+Traceback (most recent call last):
+  File "/opt/homebrew/lib/python3.11/site-packages/discord/client.py", line 441, in _run_event
+    await coro(*args, **kwargs)
+  File "/Users/jdkelly/Projects/cs152-discord-bot/DiscordBot/bot.py", line 84, in on_message
+    await self.handle_channel_message(message)
+  File "/Users/jdkelly/Projects/cs152-discord-bot/DiscordBot/bot.py", line 197, in handle_channel_message
+    for r in responses:
+TypeError: 'NoneType' object is not iterable

@@ -7,6 +7,7 @@ import logging
 import re
 import requests
 from report import Report
+from review import Review
 from report import State
 import pdb
 
@@ -35,6 +36,10 @@ class ModBot(discord.Client):
         self.group_num = None
         self.mod_channels = {} # Map from guild to the mod channel id for that guild
         self.reports = {} # Map from user IDs to the state of their report
+
+        self.reviews = [] # Dictionary of Reports to Review
+        self.info = {"reporters":{}, "advertisers":{}} # Dictionary of tracked values
+        self.current_review = None
 
     async def on_ready(self):
         print(f'{self.user.name} has connected to Discord! It is these guilds:')
@@ -130,21 +135,90 @@ class ModBot(discord.Client):
         if self.reports[author_id].state == State.REPORT_CANCELLED:
             self.reports[author_id].report_cancelled()
             self.reports.pop(author_id)
+
         elif self.reports[author_id].report_complete():
             # ADD TO DB!
+            self.reviews.append([author_id, self.reports[author_id]])
+
+            # Add to info on Reports
+            if author_id not in self.info["reporters"]:
+                self.info["reporters"][author_id] = {"reported":1, "false":0}
+            else:
+                self.info["reporters"][author_id]["reported"] += 1
+
+            # Add to info on Advertisers
+            if self.reports[author_id].PERP_INFO["author_id"] not in self.info["advertisers"]:
+                self.info["advertisers"][self.reports[author_id].PERP_INFO["author_id"]] = {"reported":1, "false":0}
+            else:
+                self.info["advertisers"][self.reports[author_id].PERP_INFO["author_id"]]["reported"] += 1
+
+            
+            # Get Mod Channel
+            # mod_channel = None
+            # for channel_name in self.mod_channels:
+                # if self.mod_channels[channel_name].name == f'group-{self.group_num}-mod':
+                    # mod_channel = self.mod_channels[channel_name]
+            
+            # Send Message to Mod Channel on new report
+            # await mod_channel.send(f'New Reported Ad: {self.reviews[0][0]}: "{self.reviews[0][1].PERP_INFO}"\n Advertiser: {self.info["advertisers"][self.reports[author_id].PERP_INFO["author_id"]]} \n Reporter: {self.info["reporters"][author_id]}')
+
             self.reports.pop(author_id)
         
 
     async def handle_channel_message(self, message):
-        # Only handle messages sent in the "group-#" channel
-        if not message.channel.name == f'group-{self.group_num}':
+        # handle messages sent in the "group-#" channel
+        if message.channel.name == f'group-{self.group_num}':
+            # Forward the message to the mod channel
+            # mod_channel = self.mod_channels[message.guild.id]
+            # await mod_channel.send(f'Forwarded message:\n{message.author.name}: "{message.content}"')
+            # scores = self.eval_text(message.content)
+            # await mod_channel.send(self.code_format(scores))
             return
+        
+        elif message.channel.name == f'group-{self.group_num}-mod':
+            # Handle a help message
+            if message.content == Review.HELP_KEYWORD:
+                reply =  "Use the `review` command to begin reviewing the top priority reported ad\n"
+                reply += "Use the `cancel` command to cancel the review process.\n"
+                await message.channel.send(reply)
+                return
+            
+            # Message is not help
+            if self.current_review == None:
 
-        # Forward the message to the mod channel
-        mod_channel = self.mod_channels[message.guild.id]
-        await mod_channel.send(f'Forwarded message:\n{message.author.name}: "{message.content}"')
-        scores = self.eval_text(message.content)
-        await mod_channel.send(self.code_format(scores))
+                if len(self.reviews) > 0:
+                    self.current_review = Review(self, self.reviews[0], self.info["advertisers"][self.reviews[0][1].PERP_INFO["author_id"]], self.info["reporters"][self.reviews[0][0]])
+                else:
+                    await message.channel.send("There are no reported ads in the queue")
+                    return
+
+            responses = await self.current_review.handle_message(message)
+
+            for r in responses:
+                await message.channel.send(r)
+
+            if self.current_review.state == State.REVIEW_CANCELLED:
+                self.current_review = None
+
+            elif self.current_review.report_complete():
+                if self.current_review.final_state == 0:
+                    self.info["advertisers"][self.reviews[0][1].PERP_INFO["author_id"]]["false"] += 1
+
+                if self.current_review.final_state == 1:
+                    self.info["advertisers"][self.reviews[0][1].PERP_INFO["author_id"]]["false"] += 1
+                    
+                if self.current_review.final_state == 2:
+                    self.info["reporters"][self.reviews[0][0]]["false"] += 1
+
+                if self.current_review.final_state == 3:
+                    self.info["reporters"][self.reviews[0][0]]["false"] += 1
+
+                self.reviews.pop(0)
+                self.current_review = None
+            return
+        
+        else:
+            return
 
     
     def eval_text(self, message):
