@@ -10,6 +10,7 @@ from report import Report
 from review import Review
 from report import State
 import pdb
+from tinydb import TinyDB, Query
 
  # Set up logging to the console
 logger = logging.getLogger('discord')
@@ -36,10 +37,12 @@ class ModBot(discord.Client):
         self.group_num = None
         self.mod_channels = {} # Map from guild to the mod channel id for that guild
         self.reports = {} # Map from user IDs to the state of their report
-
-        self.reviews = [] # Dictionary of Reports to Review
-        self.info = {"reporters":{}, "advertisers":{}} # Dictionary of tracked values
         self.current_review = None
+        self.current_report = None
+
+        self.db = TinyDB('db.json')
+        self.usersDB = TinyDB('users.json')
+        
 
     async def on_ready(self):
         print(f'{self.user.name} has connected to Discord! It is these guilds:')
@@ -66,7 +69,8 @@ class ModBot(discord.Client):
         This function is called whenever a message is sent in a channel that the bot can see (including DMs). 
         Currently the bot is configured to only handle messages that are sent over DMs or in your group's "group-#" channel. 
         '''
-        
+        User = Query()
+
         # Ignore messages from the bot 
         if message.author.id == self.user.id:
             return
@@ -75,8 +79,11 @@ class ModBot(discord.Client):
         if message.guild:
             #check if perpetrator is in a reports class instance 
             # COME BACK
-            # for reporter, report in self.reports.items():
-            #     if report.PERP_INFO["author_id"] == message.author.id:
+            user_info = self.usersDB.get(User["author_id"] == message.author.id)
+            if user_info:
+                if user_info["ad-block"] == 1:
+                    await message.delete()
+                    return
             #         # this person has been reported by a user in this channel
             #         # prevent this person from messaging until mod team figures out what to do
             #         await message.delete()
@@ -87,6 +94,8 @@ class ModBot(discord.Client):
             await self.handle_dm(message)
 
     async def handle_dm(self, message):
+        User = Query()
+
         # Handle a help message
         if message.content == Report.HELP_KEYWORD:
             reply =  "Use the `report` command to begin the reporting process.\n"
@@ -150,19 +159,23 @@ class ModBot(discord.Client):
             #     prev_reports.append(self.reports[author_id])
             self.reports[author_id].report_complete(curr_report)
             # ADD TO DB!
-            self.reviews.append([author_id, self.reports[author_id]])
-
+            
             # Add to info on Reports
-            if author_id not in self.info["reporters"]:
-                self.info["reporters"][author_id] = {"reported":1, "false":0}
+            if not self.usersDB.contains(User["author_id"] == author_id):
+                self.usersDB.insert({"author_id": author_id, "user-report":1, "user-false":0, "user-ban":0, "ad-report":0, "ad-false":0, "ad-ban": 0, "ad-block": 0})
             else:
-                self.info["reporters"][author_id]["reported"] += 1
+                user_info = self.usersDB.get(User["author_id"] == author_id)
+                userReport = user_info["user-report"] + 1
+                self.usersDB.update({"user-report": userReport}, User["author_id"] == author_id)
 
             # Add to info on Advertisers
-            if self.reports[author_id].reported_user_info["author_id"] not in self.info["advertisers"]:
-                self.info["advertisers"][self.reports[author_id].reported_user_info["author_id"]] = {"reported":1, "false":0}
+            if not self.usersDB.contains(User["author_id"] == curr_report.reported_user_info["author_id"]):
+                self.usersDB.insert({"author_id": curr_report.reported_user_info["author_id"], "user-report":0, "user-false":0, "user-ban":0, "ad-report":1, "ad-false":0, "ad-ban": 0, "ad-block": 0})
             else:
-                self.info["advertisers"][self.reports[author_id].reported_user_info["author_id"]]["reported"] += 1
+                user_info = self.usersDB.get(User["author_id"] == curr_report.reported_user_info["author_id"])
+                adReport = user_info["ad-report"] + 1
+                self.usersDB.update({"ad-report": adReport}, User["author_id"] == curr_report.reported_user_info["author_id"])
+            
 
             
             # Get Mod Channel
@@ -178,6 +191,8 @@ class ModBot(discord.Client):
         
 
     async def handle_channel_message(self, message):
+        User = Query()
+
         # handle messages sent in the "group-#" channel
         if message.channel.name == f'group-{self.group_num}':
             # Forward the message to the mod channel
@@ -197,9 +212,15 @@ class ModBot(discord.Client):
             
             # Message is not help
             if self.current_review == None:
-
-                if len(self.reviews) > 0:
-                    self.current_review = Review(self, self.reviews[0], self.info["advertisers"][self.reviews[0][1].reported_user_info["author_id"]], self.info["reporters"][self.reviews[0][0]])
+                self.current_report = self.db.get(User["id"] >= 0)
+                for i in range(self.db.count(User["id"] >= 0)):
+                    self.current_report = self.db.get(User["id"] >= 0)
+                    if 'covid' in str(self.current_report["report"]["report_clarity_reason"]):
+                        break 
+                if self.current_report != None :
+                    report_user = self.usersDB.get(User["author_id"] == self.current_report["reporter"]["author_id"])
+                    ad_user = self.usersDB.get(User["author_id"] == self.current_report["reported_user"]["author_id"])
+                    self.current_review = Review(self, self.current_report, ad_user, report_user)
                 else:
                     await message.channel.send("There are no reported ads in the queue")
                     return
@@ -211,21 +232,64 @@ class ModBot(discord.Client):
 
             if self.current_review.state == State.REVIEW_CANCELLED:
                 self.current_review = None
-
-            elif self.current_review.report_complete():
+            
+            elif self.current_review.review_complete():
                 if self.current_review.final_state == 0:
-                    self.info["advertisers"][self.reviews[0][1].reported_user_info["author_id"]]["false"] += 1
+                    ad_info = self.usersDB.get(User["author_id"] == self.current_report["reported_user"]["author_id"])
+                    adFalse = ad_info["ad-false"] + 1
+                    adBan = 1
+                    self.usersDB.update({"ad-false": adFalse, "ad-ban" : adBan}, User["author_id"] == self.current_report["reported_user"]["author_id"])
+                    
+                    for guild in self.guilds:
+                        for channel in guild.text_channels:
+                            if channel.name == f'group-{self.group_num}':
+                                partial_message = channel.get_partial_message(self.current_report["reported_user"]["message_id"])
+                                await channel.delete_messages([partial_message])
+
+                    ad_user = await self.get_user(self.current_report["reported_user"]["author_id"])
+                    dm_channel = await self.create_dm(ad_user)
+                    await dm_channel.send("Your ad has been removed for misinformation. Visit <link to \n \
+                                   accurate source> to learn more. Due to your history of advertising \n \
+                                   misinformation, your account has been temporarily banned. Our \n \
+                                   moderator team will  review the situation.")
 
                 if self.current_review.final_state == 1:
-                    self.info["advertisers"][self.reviews[0][1].reported_user_info["author_id"]]["false"] += 1
+                    ad_info = self.usersDB.get(User["author_id"] == self.current_report["reported_user"]["author_id"])
+                    adFalse = ad_info["ad-false"] + 1
+                    self.usersDB.update({"ad-false": adFalse}, User["author_id"] == self.current_report["reported_user"]["author_id"])
+
+                    for guild in self.guilds:
+                        for channel in guild.text_channels:
+                            if channel.name == f'group-{self.group_num}':
+                                partial_message = channel.get_partial_message(self.current_report["reported_user"]["message_id"])
+                                await channel.delete_messages([partial_message])
+
+                    ad_user = await self.get_user(self.current_report["reported_user"]["author_id"])
+                    dm_channel = await ad_user.create_dm()
+                    await dm_channel.send("Your ad has been removed for misinformation. Visit <link to \n \
+                                    accurate source> to learn more. If this problem persists, your \n \
+                                    account will be banned.")
                     
                 if self.current_review.final_state == 2:
-                    self.info["reporters"][self.reviews[0][0]]["false"] += 1
+                    user_info = self.usersDB.get(User["author_id"] == self.current_report["reporter"]["author_id"])
+                    userFalse = user_info["user-false"] + 1
+                    userBan = 1
+                    self.usersDB.update({"user-false": userFalse, "user-ban" : userBan}, User["author_id"] == self.current_report["reporter"]["author_id"])
+
+                    dm_channel = self.get_all_channels()
+                    self.channels.cache(self.current_report["reporter"]["channel_id"])
+                    await dm_channel.send("The ad that you reported is not misinformation. Due to your \n \
+                                    history of false reporting, you will be temporarily banned from \n \
+                                    reporting advertisements. Our moderator team will  review the \n \
+                                    situation.")
 
                 if self.current_review.final_state == 3:
-                    self.info["reporters"][self.reviews[0][0]]["false"] += 1
+                    user_info = self.usersDB.get(User["author_id"] == self.current_report["reporter"]["author_id"])
+                    userFalse = user_info["user-false"] + 1
+                    self.usersDB.update({"user-false": userFalse}, User["author_id"] == self.current_report["reporter"]["author_id"])
 
-                self.reviews.pop(0)
+                report_id = self.current_report["id"]
+                self.db.remove(User["id"] == report_id)
                 self.current_review = None
             return
         

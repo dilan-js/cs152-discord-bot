@@ -8,6 +8,11 @@ class Review:
     START_KEYWORD = "review"
     CANCEL_KEYWORD = "cancel"
     HELP_KEYWORD = "help"
+    MISINFO_CLARITY_REASONS = [["ron desantis' presidential campaign", "presidential campaign", "ron desantis", "ron", "desantis"], 
+        ["donald trump trials", "donald trump", "donald", "trump"], 
+        ["conflict between russia and ukraine", "russia", "ukraine", "russia ukraine"],
+        ["covid or vaccination", "covid", "vaccinations", "covid-19", "vax"], 
+        ["no"]]
     
 
     def __init__(self, client, ad, advertiser_info, reporter_info):
@@ -15,7 +20,8 @@ class Review:
         # self.num_state = 0 #0 = start 
         self.client = client
         self.ad = ad
-        self.info = {'advertiser': advertiser_info, 'reporter': reporter_info}
+        self.advertiser_info = advertiser_info
+        self.reporter_info = reporter_info
         self.final_state = None
 
     
@@ -34,9 +40,10 @@ class Review:
             reply =  "Thank you for starting the review process. "
             reply += "Say `help` at any time for more information.\n\n"
             reply += "Information on the Reported Ad:\n"
-            reply += "Ad - Message ID: " + str(self.ad[1].PERP_INFO["message_id"]) + " \n"
-            reply += "Advertiser - Total Reports: " + str(self.info['advertiser']['reported']) + " - False Ads: "+ str(self.info['advertiser']['false']) +" \n"
-            reply += "Reporter - Total Reports: " + str(self.info['reporter']['reported']) + " - False Reports: "+ str(self.info['reporter']['false']) +" \n\n"
+            reply += "Ad - Message: " + str(self.ad["reported_user"]["message_content"]) + " \n"
+            reply += "Ad Classification - Misinformation Type: " + str(self.ad["report"]["report_reason"]) + " - Event Category: "+ str(self.ad["report"]["report_clarity_reason"]) + " \n"
+            reply += "Advertiser - Total Reports: " + str(self.advertiser_info["ad-report"]) + " - False Ads: "+ str(self.advertiser_info["ad-false"]) +" \n"
+            reply += "Reporter - Total Reports: " + str(self.reporter_info["user-report"]) + " - False Reports: "+ str(self.reporter_info['user-false']) +" \n\n"
             self.state = State.AWAITING_MISINFO
             return [reply, "Does this violate our policy on misinformation? Type `yes` or `no` based on your assessment"]
         
@@ -62,7 +69,8 @@ class Review:
                 return ["Does the advertiser have a history of ads with misinformation? Type `yes` or `no` based on your assessment"]
             elif user_msg == 'no':
                 self.state = State.EVENT_FIX
-                return ["Please enter the correct event classification", "Type: `Elections`, `Major Event A`, `Major Event B` "]
+                return ["Please enter the correct event classification", "Please enter the correct event classification \
+                        Type: `ron desantis presidential campaign`, `donald trump trials`, `conflict between russia and ukraine`, `covid or vaccinations`, `no` "]
             else:
                 return ["Sorry! It looks like that was an invalid input.", "Please type `yes` or `no` based on your assessment"]
             
@@ -70,11 +78,21 @@ class Review:
             user_msg = message.content
             user_msg = user_msg.lower()
 
-            if user_msg in ['elections', 'major event a', 'major event b']:
+            for reason_section in self.MISINFO_CLARITY_REASONS:
+                if user_msg in reason_section and user_msg != 'no':
+                    self.state = State.HISTORY_AD
+                    return ["Does the advertiser have a history of ads with misinformation? Type `yes` or `no` based on your assessment"]
+            if user_msg == 'no':
                 self.state = State.HISTORY_AD
                 return ["Does the advertiser have a history of ads with misinformation? Type `yes` or `no` based on your assessment"]
             else:
-                return ["Sorry! It looks like that was an invalid input.", "Please enter the correct event classification", "Type: `Elections`, `Major Event A`, `Major Event B` "]
+                return ["Sorry! It looks like that was an invalid input.", "Please enter the correct event classification \
+                        Type: \
+                        `Ron DeSantis' presidential campaign`, \
+                        `Donald Trump trials`, \
+                        `Conflict between Russia and Ukraine`, \
+                        `COVID or vaccinations`, \
+                        `No` "]
             
         if self.state == State.HISTORY_AD:
             user_msg = message.content
@@ -82,7 +100,7 @@ class Review:
 
             if user_msg == 'yes':
                 self.state = State.REVIEW_COMPLETE
-                self.final_state = 1
+                self.final_state = 0
                 return ["Thank you for completing the review of this ad \n This ad will be removed and the advertiser has been temporarily banned \n This case will be elevated for evaluation for consideration of a permanent ban of the advertiser"]
             elif user_msg == 'no':
                 self.state = State.REVIEW_COMPLETE
@@ -91,7 +109,7 @@ class Review:
             else:
                 return ["Sorry! It looks like that was an invalid input.", "Please type `yes` or `no` based on your assessment"]
             
-        if self.state == State.HISTORY_AD:
+        if self.state == State.HISTORY_REPORT:
             user_msg = message.content
             user_msg = user_msg.lower()
 
@@ -106,8 +124,8 @@ class Review:
             else:
                 return ["Sorry! It looks like that was an invalid input.", "Please type `yes` or `no` based on your assessment"]
 
-    def report_complete(self):
-        return self.state == State.REPORT_COMPLETE
+    def review_complete(self):
+        return self.state == State.REVIEW_COMPLETE
     
 
 
