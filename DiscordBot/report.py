@@ -133,14 +133,15 @@ class Report:
             #handle here for words that we do not expect, set self.state = State.REPORT_COMPLETE return ["Report cancelled."]
             if message.content == 'yes':
                 self.state = State.MESSAGE_CONFIRMED
-                return ["Please type the reason for reporting this message from the following list:", \
-                        "• Misinformation/Disinformation", \
-                        "• Offensive Content", \
-                        "• Harassment", \
-                        "• Imminent Danger", \
-                        "• Promotes Terrorism", \
-                        "• Spam", \
-                        "• Other"]
+                reply =  "Please type the reason for reporting this message from the following list:\n"
+                reply += "• Misinformation/Disinformation\n"
+                reply += "• Offensive Content\n"
+                reply += "• Harassment\n"
+                reply += "• Imminent Danger\n"
+                reply += "• Promotes Terrorism\n"
+                reply += "• Spam\n"
+                reply += "• Other"
+                return [reply]
             #else try again?
             else:
                 return ["Sorry! It looks like that we got the wrong message, type 'cancel' to restart."]
@@ -158,15 +159,16 @@ class Report:
                     print("found misinformation")
                     self.state = State.MISINFORMATION_REPORT
                     self.report_type = "misinformation"
-                    return ["Please type out the type of " + user_msg, \
-                            "• Manipulated content", \
-                            "• Impersonation of other sources", \
-                            "• Reporting Error", \
-                            "• Scam", \
-                            "• Untrue/False", \
-                            "• Satire/Parody", \
-                            "• Propaganda"
-                            ]
+                
+                    reply =  "Please type out the type of " + user_msg + "\n"
+                    reply += "• Manipulated content\n"
+                    reply += "• Impersonation of other sources\n"
+                    reply += "• Reporting Error\n"
+                    reply += "• Scam\n"
+                    reply += "• Satire/Parody\n"
+                    reply += "• Propaganda\n"
+                    reply += "• Untrue/False"
+                    return [reply]
                 
                 elif user_msg == 'spam':
                     print("FOUND SPAM")
@@ -192,7 +194,7 @@ class Report:
                             "Type: 'Self harm or suicidal intent', 'Credible threat of violence', or type 'cancel' to restart"
                             ]
             else:
-                return ["Invalid input. Please type 'cancel' and try again."]
+                return ["Invalid input. Please try again with one of the provided options"]
                
         if self.state == State.MISINFORMATION_REPORT:
             user_msg = message.content
@@ -203,14 +205,16 @@ class Report:
                 self.report_reason = misinfo_reason
                 #ADD IN DB 
                 self.state = State.AWAITING_MISINFO_CLARITY
-                return ["Thank you for reporting a potential instance of " + misinfo_reason + ".", \
-                        "Is it related to any of the following?", \
-                        "• Ron DeSantis' presidential campaign", \
-                        "• Donald Trump trials", \
-                        "• Conflict between Russia and Ukraine", \
-                        "• COVID or vaccinations", \
-                        "• No", \
-                        ]
+
+                reply =  "Thank you for reporting a potential instance of " + misinfo_reason + ".\n"
+                reply += "Is it related to any of the following?\n"
+                reply += "• Ron DeSantis' presidential campaign\n"
+                reply += "• Donald Trump trials\n"
+                reply += "• Conflict between Russia and Ukraine\n"
+                reply += "• COVID or vaccinations\n"
+                reply += "• No\n"
+                return [reply]
+
         elif self.state == State.SPAM_REPORT:
             user_msg = message.content
             user_msg = user_msg.lower()
@@ -328,7 +332,7 @@ class Report:
     def save_report(self):
         db = TinyDB('db.json')
 
-    def report_complete(self, report):
+    def report_complete(self):
         db = TinyDB('db.json')
         id = random.randint(0, 1200) 
         reported_user = self.reported_user_info
@@ -336,7 +340,8 @@ class Report:
         reporter = self.reporter
         db.insert({"id": id, "reporter" : reporter, "reported_user": reported_user, "report": report})
         print("saved to db successfully")
-        return self.state == State.REPORT_COMPLETE
+
+        return id
 
     def report_cancelled(self):
         return self.state == State.REPORT_CANCELLED
