@@ -81,6 +81,11 @@ class Review:
             for reason_section in self.MISINFO_CLARITY_REASONS:
                 if user_msg in reason_section and user_msg != 'no':
                     self.state = State.HISTORY_AD
+                    
+                    report_id = self.client.review_queue[0]
+                    ad_info = self.ad["report"]
+                    ad_info["report_clarity_reason"] = user_msg
+                    self.client.db.update({"report": ad_info}, self.client.User["id"] == report_id)
                     return ["Does the advertiser have a history of ads with misinformation? Type `yes` or `no` based on your assessment"]
             if user_msg == 'no':
                 self.state = State.HISTORY_AD
