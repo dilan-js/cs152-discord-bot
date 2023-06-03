@@ -164,6 +164,8 @@ class ModBot(discord.Client):
                 iter_priority = self.REPORT_PRIORITY[iter_cat]
                 if report_priority < iter_priority:
                     break
+            
+            # Update location and continue
             insert_location = id_iter + 1
         
         # Insert into Queue and update DB
@@ -187,8 +189,10 @@ class ModBot(discord.Client):
 
         # Check if this message was sent in a server ("guild") or if it's a DM
         if message.guild:
+            # Proceed to Channel Flow
             await self.handle_channel_message(message)
         else:
+            # Proceed to DM Flow
             await self.handle_dm(message)
 
 
@@ -199,6 +203,12 @@ class ModBot(discord.Client):
             reply =  "Use the `report` command to begin the reporting process.\n"
             reply += "Use the `cancel` command to cancel the report process.\n"
             await message.channel.send(reply)
+            return
+        
+        # Check if the Sender is Banned from reporting
+        author_info = self.usersDB.get(self.User["author_id"] == message.author.id)
+        if author_info["report-ban"] == 1:
+            await self.dm_user(message.author.id, "Your account has been banned from reporting due to a history of false reports")
             return
 
         author_id = message.author.id
@@ -252,7 +262,21 @@ class ModBot(discord.Client):
         
         # handle messages sent in the "group-#" channel
         if message.channel.name == f'group-{self.group_num}':
-            # Add check for block or ban
+            # Check if the Sender is Banned or Blocked
+            author_info = self.usersDB.get(self.User["author_id"] == message.author.id)
+            if author_info["ad-ban"] == 1:
+                await self.dm_user(message.author.id, "Your account has been banned due to a history of misinformation, You cannot post")
+                await self.delete_message(message.channel.id, message.id)
+
+                return
+            elif author_info["ad-block"] == 1:
+                await self.delete_message(message.channel.id, message.id)
+                # No dm, since only blocked by this user
+
+                # normally wouldn't but since we are just considering one person's feed no need to 
+                return
+
+            # Send Message to Automated Review
 
             return
         
@@ -290,7 +314,7 @@ class ModBot(discord.Client):
                     # Delete Post
                     await self.delete_message(self.current_report["reported_user"]["channel_id"], self.current_report["reported_user"]["message_id"])
                     # Send Them A Message Saying They Have Been Banned
-                    await self.dm_user(self.current_report["reported_user"]["author_id"], "Your ad has been removed for misinformation. Visit <link to \n accurate source> to learn more. Due to your history of advertising \n misinformation, your account has been temporarily banned. Our \n moderator team will  review the situation.")
+                    await self.dm_user(self.current_report["reported_user"]["author_id"], "Your ad has been removed for misinformation. Visit <link to \n accurate source> to learn more. Due to your history of advertising \n misinformation, your account has been banned. Our \n moderator team will  review the situation.")
                     # Ban User
                     await self.ban_user(self.current_report["reported_user"]["author_id"])
 
@@ -304,7 +328,7 @@ class ModBot(discord.Client):
                 # Bad report w/ history
                 if self.current_review.final_state == 2:
                     # Send Them A Message Saying They Have Been Banned from reporting
-                    await self.dm_user(self.current_report["reporter"]["author_id"], "The ad that you reported is not misinformation.\nDue to your history of false reporting, you will be banned from reporting advertisements.\nOur moderator team will review the situation.\n ")
+                    await self.dm_user(self.current_report["reporter"]["author_id"], "The ad that you reported is not misinformation.\nDue to your history of false reporting, you have been banned from reporting advertisements.\nOur moderator team will review the situation.\n ")
                     # Ban User Reports
                     await self.ban_user_reports(self.current_report["reporter"]["author_id"])
                     
