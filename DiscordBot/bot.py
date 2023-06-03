@@ -30,6 +30,13 @@ with open(token_path) as f:
 
 
 class ModBot(discord.Client):
+
+    REPORT_PRIORITY = {"ron desantis' presidential campaign":1,
+                       "donald trump trials":3,
+                       "conflict between russia and ukraine":2,
+                       "covid or vaccinations":0,}
+
+
     def __init__(self): 
         intents = discord.Intents.default()
         intents.message_content = True
@@ -46,8 +53,6 @@ class ModBot(discord.Client):
 
         self.User = None
         self.review_queue = []
-
-        
 
     async def on_ready(self):
         print(f'{self.user.name} has connected to Discord! It is these guilds:')
@@ -102,14 +107,14 @@ class ModBot(discord.Client):
     async def update_user_database_report(self, report):
         # Add to info on Reports
         if not self.usersDB.contains(self.User["author_id"] == report.reporter["author_id"]):
-            self.usersDB.insert({"author_id": report.reporter["author_id"], "user-report":1, "user-false":0, "report-ban":0, "ad-report":0, "ad-false":0, "ad-ban": 0, "ad-block": 0, "ban": 0})
+            self.usersDB.insert({"author_id": report.reporter["author_id"], "user-report":1, "user-false":0, "report-ban":0, "ad-report":0, "ad-false":0, "ad-ban": 0, "ad-block": 0, "ban": 0, "confidence": 0.9})
         else:
             user_info = self.usersDB.get(self.User["author_id"] == report.reporter["author_id"])
             userReport = user_info["user-report"] + 1
             self.usersDB.update({"user-report": userReport}, self.User["author_id"] == report.reporter["author_id"])
         # Add to info on Advertisers
         if not self.usersDB.contains(self.User["author_id"] == report.reported_user_info["author_id"]):
-            self.usersDB.insert({"author_id": report.reported_user_info["author_id"], "user-report":0, "user-false":0, "report-ban":0, "ad-report":1, "ad-false":0, "ad-ban": 0, "ad-block": 0, "ban": 0})
+            self.usersDB.insert({"author_id": report.reported_user_info["author_id"], "user-report":0, "user-false":0, "report-ban":0, "ad-report":1, "ad-false":0, "ad-ban": 0, "ad-block": 0, "ban": 0, "confidence": 0.9})
         else:
             user_info = self.usersDB.get(self.User["author_id"] == report.reported_user_info["author_id"])
             adReport = user_info["ad-report"] + 1
@@ -136,21 +141,32 @@ class ModBot(discord.Client):
             self.usersDB.update({"user-false": reportFalse}, self.User["author_id"] == report["reporter"]["author_id"])
 
     async def add_report_to_queue(self, report, id):
-        report_cat = report.report_clarity_reason
+        # Get Basic Info On Report
         report_message_id = report.reported_user_info['message_id']
+        report_cat = report.report_clarity_reason
+        report_type = report.report_reason
+        report_priority = self.REPORT_PRIORITY[report_cat]
+
+        # Find Location to Insert
         insert_location = 0
         for id_iter in range(len(self.review_queue)):
             report_iter = self.db.get(self.User["id"] == self.review_queue[id_iter])
             iter_cat = report_iter['report']['report_clarity_reason']
+            iter_type = report_iter['report']["report_reason"]
 
+            # Check for Duplicate Report
             iter_message_id = report_iter['reported_user']['message_id']
-            
-            insert_location = id_iter
             if report_message_id == iter_message_id:
                 return
-            elif iter_cat == report_cat:
-                break
-
+            
+            # Check for Priortity Cat
+            if iter_cat in self.REPORT_PRIORITY.keys():
+                iter_priority = self.REPORT_PRIORITY[iter_cat]
+                if report_priority < iter_priority:
+                    break
+            insert_location = id_iter + 1
+        
+        # Insert into Queue and update DB
         self.review_queue.insert(insert_location, id)
         self.reviewDB.update({'review_queue': self.review_queue}, self.User['review_queue'].exists())
 
@@ -350,6 +366,7 @@ class ConfirmView(discord.ui.View):
                 x.disabled = True
             # button.disabled = True
             self.stop()
+
 client = ModBot()
 client.run(discord_token)
 

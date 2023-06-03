@@ -58,7 +58,6 @@ class Report:
     BLOCK_ADVERTISER = ["block advertiser", "block"]
     DO_NOTHING = ["nothing", "do nothing"]
     
-
     def __init__(self, client):
         self.state = State.REPORT_START
         # self.num_state = 0 #0 = start 

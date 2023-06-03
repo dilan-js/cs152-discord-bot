@@ -69,8 +69,14 @@ class Review:
                 return ["Does the advertiser have a history of ads with misinformation? Type `yes` or `no` based on your assessment"]
             elif user_msg == 'no':
                 self.state = State.EVENT_FIX
-                return ["Please enter the correct event classification", "Please enter the correct event classification \
-                        Type: `ron desantis presidential campaign`, `donald trump trials`, `conflict between russia and ukraine`, `covid or vaccinations`, `no` "]
+                
+                reply = "Please enter the correct event classification:\n"
+                reply += "• Ron DeSantis' presidential campaign\n"
+                reply += "• Donald Trump trials\n"
+                reply += "• Conflict between Russia and Ukraine\n"
+                reply += "• COVID or vaccinations\n"
+                reply += "• No\n"
+                return [reply]
             else:
                 return ["Sorry! It looks like that was an invalid input.", "Please type `yes` or `no` based on your assessment"]
             
@@ -91,13 +97,15 @@ class Review:
                 self.state = State.HISTORY_AD
                 return ["Does the advertiser have a history of ads with misinformation? Type `yes` or `no` based on your assessment"]
             else:
-                return ["Sorry! It looks like that was an invalid input.", "Please enter the correct event classification \
-                        Type: \
-                        `Ron DeSantis' presidential campaign`, \
-                        `Donald Trump trials`, \
-                        `Conflict between Russia and Ukraine`, \
-                        `COVID or vaccinations`, \
-                        `No` "]
+                self.state = State.EVENT_FIX
+                reply = "Sorry! It looks like that was an invalid input.\n"
+                reply += "Please enter the correct event classification:\n"
+                reply += "• Ron DeSantis' presidential campaign\n"
+                reply += "• Donald Trump trials\n"
+                reply += "• Conflict between Russia and Ukraine\n"
+                reply += "• COVID or vaccinations\n"
+                reply += "• No\n"
+                return [reply]
             
         if self.state == State.HISTORY_AD:
             user_msg = message.content
