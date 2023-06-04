@@ -11,6 +11,7 @@ from review import Review
 from report import State
 import pdb
 from tinydb import TinyDB, Query
+from automation import Automation
 
  # Set up logging to the console
 logger = logging.getLogger('discord')
@@ -53,6 +54,8 @@ class ModBot(discord.Client):
 
         self.User = None
         self.review_queue = []
+
+        self.autoBot = Automation()
 
     async def on_ready(self):
         print(f'{self.user.name} has connected to Discord! It is these guilds:')
@@ -277,6 +280,9 @@ class ModBot(discord.Client):
                 return
 
             # Send Message to Automated Review
+            text_classification = self.autoBot.classify(message.content)
+            text_category = self.autoBot.categorize(message.content)
+            print(text_classification, text_category)
 
             return
         
