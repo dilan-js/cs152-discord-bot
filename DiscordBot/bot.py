@@ -323,8 +323,8 @@ class ModBot(discord.Client):
 
                 if text_classification['label'] == 'LABEL_1':
                     await self.add_message_to_db_bot(message, text_category, text_classification['score'])
-            except:
-                pass
+            except Exception as e: 
+                print(e)
 
             return
         
