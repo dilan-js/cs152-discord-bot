@@ -19,7 +19,7 @@ class Automation:
         with open(token_path) as f:
             # If you get an error here, it means your token is formatted incorrectly. Did you put it in quotes?
             tokens = json.load(f)
-        openai.organization = "org-YVZe9QFuR0Ke0J0rqr7l2R2L"
+        openai.organization = "org-UBkm0Id3jzoN191zjDlWgcPs"
         openai.api_key = tokens['openai']
 
         self.prompt_template = "Classify the following text as"
