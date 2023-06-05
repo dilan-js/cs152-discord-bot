@@ -229,9 +229,10 @@ class ModBot(discord.Client):
         
         # Check if the Sender is Banned from reporting
         author_info = self.usersDB.get(self.User["author_id"] == message.author.id)
-        if author_info["report-ban"] == 1:
-            await self.dm_user(message.author.id, "Your account has been banned from reporting due to a history of false reports")
-            return
+        if author_info is not None:
+            if author_info["report-ban"] == 1:
+                await self.dm_user(message.author.id, "Your account has been banned from reporting due to a history of false reports")
+                return
 
         author_id = message.author.id
         responses = []
@@ -286,17 +287,18 @@ class ModBot(discord.Client):
         if message.channel.name == f'group-{self.group_num}':
             # Check if the Sender is Banned or Blocked
             author_info = self.usersDB.get(self.User["author_id"] == message.author.id)
-            if author_info["ad-ban"] == 1:
-                await self.dm_user(message.author.id, "Your account has been banned due to a history of misinformation, You cannot post")
-                await self.delete_message(message.channel.id, message.id)
+            if author_info is not None:
+                if author_info["ad-ban"] == 1:
+                    await self.dm_user(message.author.id, "Your account has been banned due to a history of misinformation, You cannot post")
+                    await self.delete_message(message.channel.id, message.id)
 
-                return
-            elif author_info["ad-block"] == 1:
-                await self.delete_message(message.channel.id, message.id)
-                # No dm, since only blocked by this user
+                    return
+                elif author_info["ad-block"] == 1:
+                    await self.delete_message(message.channel.id, message.id)
+                    # No dm, since only blocked by this user
 
-                # normally wouldn't but since we are just considering one person's feed no need to 
-                return
+                    # normally wouldn't but since we are just considering one person's feed no need to 
+                    return
 
             # Send Message to Automated Review
             text_classification = self.autoBot.classify(message.content)
