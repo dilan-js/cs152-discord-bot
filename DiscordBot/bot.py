@@ -12,6 +12,7 @@ from report import State
 import pdb
 from tinydb import TinyDB, Query
 from automation import Automation
+import traceback
 
  # Set up logging to the console
 logger = logging.getLogger('discord')
@@ -325,6 +326,7 @@ class ModBot(discord.Client):
                     await self.add_message_to_db_bot(message, text_category, text_classification['score'])
             except Exception as e: 
                 print(e)
+                print(traceback.format_exc())
 
             return
         
