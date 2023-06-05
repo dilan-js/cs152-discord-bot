@@ -32,10 +32,12 @@ with open(token_path) as f:
 
 class ModBot(discord.Client):
 
-    REPORT_PRIORITY = {"ron desantis' presidential campaign":1,
-                       "donald trump trials":3,
+    REPORT_PRIORITY = {"ron desantis' presidential campaign":3,
+                       "donald trump trials":1,
                        "conflict between russia and ukraine":2,
-                       "covid or vaccinations":0,}
+                       "covid or vaccinations":4,}
+    
+    LABELS = ["Election", "COVID", "Other"]
 
 
     def __init__(self): 
@@ -107,17 +109,17 @@ class ModBot(discord.Client):
     async def ban_user_reports(self, user_id):
         self.usersDB.update({"report-ban": 1}, self.User["author_id"] == user_id)
 
-    async def update_user_database_report(self, report):
+    async def update_user_database_report(self, report, confidence=0.9):
         # Add to info on Reports
         if not self.usersDB.contains(self.User["author_id"] == report.reporter["author_id"]):
-            self.usersDB.insert({"author_id": report.reporter["author_id"], "user-report":1, "user-false":0, "report-ban":0, "ad-report":0, "ad-false":0, "ad-ban": 0, "ad-block": 0, "ban": 0, "confidence": 0.9})
+            self.usersDB.insert({"author_id": report.reporter["author_id"], "user-report":1, "user-false":0, "report-ban":0, "ad-report":0, "ad-false":0, "ad-ban": 0, "ad-block": 0, "ban": 0, "confidence": confidence})
         else:
             user_info = self.usersDB.get(self.User["author_id"] == report.reporter["author_id"])
             userReport = user_info["user-report"] + 1
             self.usersDB.update({"user-report": userReport}, self.User["author_id"] == report.reporter["author_id"])
         # Add to info on Advertisers
         if not self.usersDB.contains(self.User["author_id"] == report.reported_user_info["author_id"]):
-            self.usersDB.insert({"author_id": report.reported_user_info["author_id"], "user-report":0, "user-false":0, "report-ban":0, "ad-report":1, "ad-false":0, "ad-ban": 0, "ad-block": 0, "ban": 0, "confidence": 0.9})
+            self.usersDB.insert({"author_id": report.reported_user_info["author_id"], "user-report":0, "user-false":0, "report-ban":0, "ad-report":1, "ad-false":0, "ad-ban": 0, "ad-block": 0, "ban": 0, "confidence": confidence})
         else:
             user_info = self.usersDB.get(self.User["author_id"] == report.reported_user_info["author_id"])
             adReport = user_info["ad-report"] + 1
@@ -142,13 +144,16 @@ class ModBot(discord.Client):
         elif review.final_state == 3:
             reportFalse = reporter_info["user-false"] + 1
             self.usersDB.update({"user-false": reportFalse}, self.User["author_id"] == report["reporter"]["author_id"])
-
+    
     async def add_report_to_queue(self, report, id):
         # Get Basic Info On Report
         report_message_id = report.reported_user_info['message_id']
         report_cat = report.report_clarity_reason
         report_type = report.report_reason
-        report_priority = self.REPORT_PRIORITY[report_cat]
+
+        report_priority = 0
+        if report_cat in self.REPORT_PRIORITY.keys():
+            report_priority = self.REPORT_PRIORITY[report_cat]
 
         # Find Location to Insert
         insert_location = 0
@@ -165,7 +170,7 @@ class ModBot(discord.Client):
             # Check for Priortity Cat
             if iter_cat in self.REPORT_PRIORITY.keys():
                 iter_priority = self.REPORT_PRIORITY[iter_cat]
-                if report_priority < iter_priority:
+                if report_priority > iter_priority:
                     break
             
             # Update location and continue
@@ -175,10 +180,26 @@ class ModBot(discord.Client):
         self.review_queue.insert(insert_location, id)
         self.reviewDB.update({'review_queue': self.review_queue}, self.User['review_queue'].exists())
 
-
     async def remove_report_from_queue(self, id):
         self.review_queue.remove(id)
         self.reviewDB.update({'review_queue': self.review_queue}, self.User['review_queue'].exists())
+
+    async def add_message_to_db_bot(self, message, report_cat, confidence):
+        bot_report = Report(self)
+        bot_report.report_type = "Misinformation/Disinformation"
+        bot_report.report_reason = "Untrue/False"
+        bot_report.report_clarity_reason = report_cat
+        bot_report.handle_reported_user = "Do Nothing"
+
+        bot_report.reported_user_info = {"author_id": message.author.id, "author_name":  message.author.name, "message_id": message.id, "message_content": message.content, "channel_id": message.channel.id}
+        bot_report.reporter = {"author_id": 0, "author_name": "Bot", "message_id": 0, "channel_id": 0}
+
+        print(bot_report.reporter)
+
+        await self.update_user_database_report(bot_report, confidence)
+
+        id = bot_report.report_complete()
+        await self.add_report_to_queue(bot_report, id)
 
     async def on_message(self, message):
         '''
@@ -282,7 +303,9 @@ class ModBot(discord.Client):
             # Send Message to Automated Review
             text_classification = self.autoBot.classify(message.content)
             text_category = self.autoBot.categorize(message.content)
-            print(text_classification, text_category)
+
+            if text_classification['label'] == 'LABEL_1':
+                await self.add_message_to_db_bot(message, text_category, text_classification['score'])
 
             return
         
