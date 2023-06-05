@@ -9,7 +9,7 @@ class Automation:
     LABELS = ["Election", "COVID", "Other"]
 
     def __init__(self): 
-        #self.clf = pipeline("text-classification", model=self.MODEL, tokenizer=self.MODEL)
+        self.clf = pipeline("text-classification", model=self.MODEL, tokenizer=self.MODEL)
 
         # There should be a file called 'tokens.json' inside the same folder as this file
         token_path = 'tokens.json'
@@ -27,8 +27,8 @@ class Automation:
             self.prompt_template += " " + label + ","
 
     def classify(self, text):
-       #result = self.clf(text)
-       result = [{'label': 'LABEL_1', 'score': 0.9989520311355591}]
+       result = self.clf(text)
+       #result = [{'label': 'LABEL_1', 'score': 0.9989520311355591}]
        return result[0]
     
     def categorize(self, text):
