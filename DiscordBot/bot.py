@@ -194,8 +194,6 @@ class ModBot(discord.Client):
         bot_report.reported_user_info = {"author_id": message.author.id, "author_name":  message.author.name, "message_id": message.id, "message_content": message.content, "channel_id": message.channel.id}
         bot_report.reporter = {"author_id": 0, "author_name": "Bot", "message_id": 0, "channel_id": 0}
 
-        print(bot_report.reporter)
-
         await self.update_user_database_report(bot_report, confidence)
 
         id = bot_report.report_complete()
