@@ -87,18 +87,27 @@ class ModBot(discord.Client):
 
     
     async def send_channel_message(self, channel_id, message_text):
-        channel = await self.fetch_channel(channel_id)
-        await channel.send(message_text)
+        try:
+            channel = await self.fetch_channel(channel_id)
+            await channel.send(message_text)
+        except:
+            pass
 
     async def dm_user(self, user_id, message_text):
-        user = await self.fetch_user(user_id)
-        dm_channel = await user.create_dm()
-        await dm_channel.send(message_text)
+        try:
+            user = await self.fetch_user(user_id)
+            dm_channel = await user.create_dm()
+            await dm_channel.send(message_text)
+        except:
+            pass
     
     async def delete_message(self, channel_id, message_id):
-        channel = await self.fetch_channel(channel_id)
-        message = await channel.fetch_message(message_id)
-        await message.delete()
+        try:
+            channel = await self.fetch_channel(channel_id)
+            message = await channel.fetch_message(message_id)
+            await message.delete()
+        except:
+            pass
 
     async def block_user(self, user_id):
         self.usersDB.update({"ad-block": 1}, self.User["author_id"] == user_id)
@@ -301,11 +310,14 @@ class ModBot(discord.Client):
                     return
 
             # Send Message to Automated Review
-            text_classification = self.autoBot.classify(message.content)
-            text_category = self.autoBot.categorize(message.content)
+            try:
+                text_classification = self.autoBot.classify(message.content)
+                text_category = self.autoBot.categorize(message.content)
 
-            if text_classification['label'] == 'LABEL_1':
-                await self.add_message_to_db_bot(message, text_category, text_classification['score'])
+                if text_classification['label'] == 'LABEL_1':
+                    await self.add_message_to_db_bot(message, text_category, text_classification['score'])
+            except:
+                pass
 
             return
         
