@@ -331,6 +331,12 @@ class ModBot(discord.Client):
             
             # Message is not help
             if self.current_review == None:
+                if message.content != Review.START_KEYWORD:
+                    reply =  "That is not a supported command\n"
+                    reply += "Use the `help` command to see options.\n"
+                    await message.channel.send(reply)
+                    return
+            
                 if len(self.review_queue) > 0:
                     self.current_report = self.db.get(self.User["id"] == self.review_queue[0])
                     report_user = self.usersDB.get(self.User["author_id"] == self.current_report["reporter"]["author_id"])
