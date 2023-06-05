@@ -237,7 +237,11 @@ class ModBot(discord.Client):
             return
         
         # Check if the Sender is Banned from reporting
-        author_info = self.usersDB.get(self.User["author_id"] == message.author.id)
+        try:
+            author_info = self.usersDB.get(self.User["author_id"] == message.author.id)
+        except:
+            author_info = None
+        
         if author_info is not None:
             if author_info["report-ban"] == 1:
                 await self.dm_user(message.author.id, "Your account has been banned from reporting due to a history of false reports")
@@ -295,7 +299,10 @@ class ModBot(discord.Client):
         # handle messages sent in the "group-#" channel
         if message.channel.name == f'group-{self.group_num}':
             # Check if the Sender is Banned or Blocked
-            author_info = self.usersDB.get(self.User["author_id"] == message.author.id)
+            try:
+                author_info = self.usersDB.get(self.User["author_id"] == message.author.id)
+            except:
+                author_info = None
             if author_info is not None:
                 if author_info["ad-ban"] == 1:
                     await self.dm_user(message.author.id, "Your account has been banned due to a history of misinformation, You cannot post")
