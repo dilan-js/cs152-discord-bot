@@ -7,11 +7,16 @@ import logging
 import re
 import requests
 from report import Report
+from ad import Ad
+from ad import AD_STATE
 from review import Review
 from report import State
 import pdb
 from tinydb import TinyDB, Query
-from automation import Automation
+from views import ConfirmView
+from views import SelectAction
+from views import SelectAdObjective, SelectAudience
+# from automation import Automation
 import traceback
 
  # Set up logging to the console
@@ -50,15 +55,16 @@ class ModBot(discord.Client):
         self.reports = {} # Map from user IDs to the state of their report
         self.current_review = None
         self.current_report = None
-
+        self.ads = {}
         self.db = TinyDB('db.json')
         self.usersDB = TinyDB('users.json')
         self.reviewDB = TinyDB('reviewQueue.json')
-
+        self.does_user_want_to_report = False
+        self.does_user_want_to_ad = False
         self.User = None
         self.review_queue = []
 
-        self.autoBot = Automation()
+        # self.autoBot = Automation()
 
     async def on_ready(self):
         print(f'{self.user.name} has connected to Discord! It is these guilds:')
@@ -229,14 +235,117 @@ class ModBot(discord.Client):
 
 
     async def handle_dm(self, message):
-
+        does_user_want_to_report = False
+        does_user_want_to_create_ad = False
+        author_id = message.author.id
         # Handle a help message
         if message.content == Report.HELP_KEYWORD:
-            reply =  "Use the `report` command to begin the reporting process.\n"
-            reply += "Use the `cancel` command to cancel the report process.\n"
+            reply =  "Hi! How can I help?\n"
+            reply += "Use the select menu below to indicate what you would like to do.\n"
+            reply += "You can also type `cancel` anytime to cancel all actions.\n"
+            # reply += "Use the `cancel` command to cancel the report process.\n"
+            view = SelectAction.SelectAction()
             await message.channel.send(reply)
+            await message.channel.send(view=view)
+            await view.wait()
+            if view.selected_value == 'Create an ad':
+                self.does_user_want_to_report = False
+                self.does_user_want_to_ad = True
+              
+                await message.channel.send("Awesome! You want to create an ad.")
+            elif view.selected_value == "Report an ad":
+                self.does_user_want_to_report = True
+                self.does_user_want_to_ad = False
+            # print("THIS ISI SELECE DVALUE = " , view.selected_value)
+            # return
+            
+        if self.does_user_want_to_ad:
+            #handle cancelling
+            if message.content == Ad.CANCEL_KEYWORD:
+                responses = await self.ads[author_id].handle_message(message)
+                for r in responses:
+                    await message.channel.send(r)
+                self.ads.pop(author_id)
+            #check that there is no existing ad for review
+            if author_id not in self.ads:
+                new_ad = Ad(self)
+                self.ads[author_id] = new_ad 
+            else:
+                reply =  "Oh no!\n"
+                reply += "It seems you have already submitted an advertisement for review.\n"
+                reply += "Until that advertisement is reviewed, we cannot deploy another ad.\n"
+                reply += "We're very sorry. Please have a good day! Goodbye\n"
+                await message.channel.send(reply)
+                 
+                
+
+
+                
+
+            #get their objectives
+            if self.ads[author_id].state == AD_STATE.AD_START:
+                reply =  "On to the next step!\n"
+                reply += "Use the select menu to pick an objective for your ad.\n"
+                reply += "You can also type `cancel` anytime to cancel all actions.\n"
+                message.channel.send(reply)
+            view = SelectAdObjective.SelectAdObjective()
+            
+            await message.channel.send(view=view)
+            await view.wait()
+            user_objective_selection = view.selected_ad_objective.lower()
+            if user_objective_selection in Ad.OBJECTIVE_OPTIONS:
+                responses = await self.ads[author_id].handle_message(user_objective_selection)
+                for r in responses:
+                    if 'Sorry' in r or 'sorry' in r:
+                        self.ads.pop(author_id)
+                    await message.channel.send(r)
+            
+            if self.ads[author_id].state == AD_STATE.AD_OBJECTIVE_SELECTED:
+                #user made successful objective selection
+                #create audience 
+                print("HIi")
+                view = SelectAudience.SelectAudience()
+                
+                await message.channel.send(view=view)
+                await view.wait()
+                user_audience_selections = view.selected_audience
+                user_audience_selections = [selection.lower() for selection in user_audience_selections]
+                if set(user_audience_selections).issubset(set(Ad.AUDIENCE_OPTIONS)):
+                    responses = await self.ads[author_id].handle_message(user_audience_selections)
+                    for r in responses:
+                        if 'Sorry' in r or 'sorry' in r:
+                            self.ads.pop(author_id)
+                        await message.channel.send(r)
+                return  
+           
+        print("dilan IN AUDIENCE IDENTIFIED, TITLE = ", message.content)
+        if self.ads[author_id].state == AD_STATE.AUDIENCE_IDENTIFIED:
+            print("dilan IN AUDIENCE IDENTIFIED, TITLE = ", message.content)
+            #user made successful objective selection
+            #create audience 
+            user_title = message.content
+            responses = await self.ads[author_id].handle_message(user_title)
+            for r in responses:
+                if 'Sorry' in r or 'sorry' in r:
+                    self.ads.pop(author_id)
+                await message.channel.send(r)
             return
-        
+        if self.ads[author_id].state == AD_STATE.AD_TITLE_CONFIGURED:
+            #user made successful objective selection
+            #create audience 
+            responses = await self.ads[author_id].handle_message(message.content)
+            for r in responses:
+                if 'Sorry' in r or 'sorry' in r:
+                    self.ads.pop(author_id)
+                await message.channel.send(r)
+
+                
+
+
+
+            
+            
+
         # Check if the Sender is Banned from reporting
         try:
             author_info = self.usersDB.get(self.User["author_id"] == message.author.id)
@@ -319,11 +428,12 @@ class ModBot(discord.Client):
 
             # Send Message to Automated Review
             try:
-                text_classification = self.autoBot.classify(message.content)
-                text_category = self.autoBot.categorize(message.content)
+                print("hey") #COMMENT BACK IN BELOW CODE FOR SERVER
+                # text_classification = self.autoBot.classify(message.content)
+                # text_category = self.autoBot.categorize(message.content)
 
-                if text_classification['label'] == 'LABEL_1':
-                    await self.add_message_to_db_bot(message, text_category, text_classification['score'])
+                # if text_classification['label'] == 'LABEL_1':
+                #     await self.add_message_to_db_bot(message, text_category, text_classification['score'])
             except Exception as e: 
                 print(e)
                 print(traceback.format_exc())
@@ -423,29 +533,30 @@ class ModBot(discord.Client):
         '''
         return "Evaluated: '" + text+ "'"
 
-class ConfirmView(discord.ui.View):
-        def __init__(self, *, timeout: float | None = 180, ):
-            super().__init__(timeout=timeout)
-            self.confirmed = None
-        @discord.ui.button(label="Yes", style=discord.ButtonStyle.primary)
-        async def yes(self, interaction: discord.Interaction, button: discord.ui.Button, custom_id="yes"):
-            self.confirmed = True
-            self.clean_up()
-            await interaction.response.edit_message(view=self)
-            await interaction.followup.send("You confirmed!")
+# class ConfirmView(discord.ui.View):
+#         def __init__(self, *, timeout: float | None = 180, ):
+#             super().__init__(timeout=timeout)
+#             self.confirmed = None
+#         @discord.ui.button(label="Yes", style=discord.ButtonStyle.primary)
+#         async def yes(self, interaction: discord.Interaction, button: discord.ui.Button, custom_id="yes"):
+#             self.confirmed = True
+#             self.clean_up()
+#             await interaction.response.edit_message(view=self)
+#             await interaction.followup.send("You confirmed!")
 
-        @discord.ui.button(label="No", style=discord.ButtonStyle.secondary, custom_id="no")
-        async def no(self, interaction: discord.Interaction, button: discord.ui.Button):
-            self.confirmed = False
-            self.clean_up()
-            await interaction.response.edit_message(view=self)
-            await interaction.followup.send("You did not confirm. Please try again.")
+#         @discord.ui.button(label="No", style=discord.ButtonStyle.secondary, custom_id="no")
+#         async def no(self, interaction: discord.Interaction, button: discord.ui.Button):
+#             self.confirmed = False
+#             self.clean_up()
+#             await interaction.response.edit_message(view=self)
+#             await interaction.followup.send("You did not confirm. Please try again.")
         
-        def clean_up(self):
-            for x in self.children:
-                x.disabled = True
-            # button.disabled = True
-            self.stop()
+#         def clean_up(self):
+#             for x in self.children:
+#                 x.disabled = True
+#             # button.disabled = True
+#             self.stop()
+
 
 client = ModBot()
 client.run(discord_token)
