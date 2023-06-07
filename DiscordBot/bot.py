@@ -683,7 +683,7 @@ class ModBot(discord.Client):
                         # Delete Post
                         await self.delete_message(self.current_report["reported_user"]["channel_id"], self.current_report["reported_user"]["message_id"])
                         # Send Them A Message Saying They Have Been Banned
-                        await self.dm_user(self.current_report["reported_user"]["author_id"], "Your ad has been removed for misinformation. Visit <link to \n accurate source> to learn more. Due to your history of advertising \n misinformation, your account has been banned. Our \n moderator team will  review the situation.")
+                        await self.dm_user(self.current_report["reported_user"]["author_id"], "Your ad has been removed for misinformation. Due to your history of advertising \n misinformation, your account has been banned. Our \n moderator team will  review the situation.")
                         # Ban User
                         await self.ban_user(self.current_report["reported_user"]["author_id"])
 
@@ -692,7 +692,7 @@ class ModBot(discord.Client):
                         # Delete Post
                         await self.delete_message(self.current_report["reported_user"]["channel_id"], self.current_report["reported_user"]["message_id"])
                         # Send Them A Message Saying their ad was misinformation and will be removed if they keep it up
-                        await self.dm_user(self.current_report["reported_user"]["author_id"], "Your ad has been removed for misinformation. Visit <link to \n accurate source> to learn more. If this problem persists, your \n account will be banned.")
+                        await self.dm_user(self.current_report["reported_user"]["author_id"], "Your ad has been removed for misinformation. If this problem persists, your \n account will be banned.")
                         
                     # Bad report w/ history
                     if self.current_review.final_state == 2:
