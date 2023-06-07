@@ -18,7 +18,7 @@ from views import ConfirmView
 from views import SelectAction
 from views import SelectAdObjective, SelectAudience
 from automation import Automation
-# from automation import Automation
+from automation import Automation
 import traceback
 
  # Set up logging to the console
@@ -106,6 +106,16 @@ class ModBot(discord.Client):
         except:
             pass
 
+    async def send_group_embed(self, embed):
+        try:
+            for guild in self.guilds:
+                for channel in guild.text_channels:
+                    if channel.name == f'group-{self.group_num}':
+                        embed = await channel.send(embed=embed)
+                        return embed
+        except:
+            pass
+
     async def dm_user(self, user_id, message_text):
         try:
             user = await self.fetch_user(user_id)
@@ -155,35 +165,10 @@ class ModBot(discord.Client):
             adReport = user_info["ad-report"] + 1
             self.usersDB.update({"ad-report": adReport}, self.User["author_id"] == report.reported_user_info["author_id"])
     
-    async def update_user_database_ad(self, ad, confidence=0.9):
-        print("hello")
-        # Add to info on Reports
-        # if not self.usersDB.contains(self.User["author_id"] == ad["adertiser"]["author_id"]):
-        #     #user_report is num of ads they report
-        #     #user false = false reports
-        #     #report ban = bans user from reporting
-        #     #ad-report = num of ads that user has been reported for 
-        #     #ad false = num ads they submitted that were bad
-        #     #ad ban = banned from posting ads
-        #     #ad block = user has blocked a current user
-            
-        #     self.usersDB.insert({"author_id": ad["adertiser"]["author_id"], "user-report":1, "user-false":0, "report-ban":0, "ad-report":0, "ad-false":0, "ad-ban": 0, "ad-block": 0, "ban": 0, "confidence": confidence})
-        # else:
-        #     user_info = self.usersDB.get(self.User["author_id"] == ad["adertiser"]["author_id"])
-        #     userReport = user_info["user-report"] + 1
-        #     self.usersDB.update({"user-report": userReport}, self.User["author_id"] == ad["adertiser"]["author_id"])
-        # # Add to info on Advertisers
-        # if not self.usersDB.contains(self.User["author_id"] == report.reported_user_info["author_id"]):
-        #     self.usersDB.insert({"author_id": report.reported_user_info["author_id"], "user-report":0, "user-false":0, "report-ban":0, "ad-report":1, "ad-false":0, "ad-ban": 0, "ad-block": 0, "ban": 0, "confidence": confidence})
-        # else:
-        #     user_info = self.usersDB.get(self.User["author_id"] == report.reported_user_info["author_id"])
-        #     adReport = user_info["ad-report"] + 1
-        #     self.usersDB.update({"ad-report": adReport}, self.User["author_id"] == report.reported_user_info["author_id"])
-    
-
-
-
-
+    async def update_ad_database(self, ad_info):
+        print(ad_info)
+        self.adsDB.insert(ad_info)
+        
     async def update_user_database_review(self, review, report):
         reporter_info = self.usersDB.get(self.User["author_id"] == report["reporter"]["author_id"])
         reported_info = self.usersDB.get(self.User["author_id"] == report["reported_user"]["author_id"])
@@ -272,18 +257,24 @@ class ModBot(discord.Client):
         if ad_status == 'Approved':
             channel_id = ad_info["advertiser"]["channel_id"]
             message_text = "Congratulations! Your advertisement has been approved and will appear shortly in the group channel!\nThanks for choosing us!"
-            await self.send_channel_message(channel_id, message_text )
-        if ad_status == 'Rejected':
+            await self.send_channel_message(channel_id, message_text)
+
+        elif ad_status == 'Pending':
+            channel_id = ad_info["advertiser"]["channel_id"]
+            message_text = "Your advertisement has been flagged for potential misinformation\nOur moderation team will review it shortly"
+            await self.send_channel_message(channel_id, message_text)
+        
+        elif ad_status == 'Rejected':
             channel_id = ad_info["advertiser"]["channel_id"]
             message_text = "We're sorry! Your advertisement has been rejected by our moderation systems for violating our platform policies. Please revise your ad content or contact customer support.\nThanks for choosing us!"
-            await self.send_channel_message(channel_id, message_text )
+            await self.send_channel_message(channel_id, message_text)
+        
         #CREATE THIS BELOW FUNCTION IF NECESSARY!
-        await self.update_user_database_ad(bot_ad, confidence)
+        await self.update_ad_database(ad_info)
         #STOPPED HERE JD ==> PICK UP HERE AND ADD AD TO DATABASE FOR MODERATION. 
-        # id = bot_report.report_complete()
-        # if ad_status == 'Pending':
-        #     await self.add_ad_to_queue(bot_ad, id)
-
+        #id = bot_ad.ad_complete()
+        #if ad_status == 'Pending':
+        #    await self.add_ad_to_queue(bot_ad, id)
 
     async def fill_out_ad_fields(self, advertiser):
         #pass to ad.py and updaate all fields
@@ -341,6 +332,16 @@ class ModBot(discord.Client):
                     await message.channel.send(r)
                 print("WE ARE POPPING")
                 self.ads.pop(self.ad_author_id)
+
+            try:
+                author_info = self.usersDB.get(self.User["author_id"] == message.author.id)
+            except:
+                author_info = None
+            if author_info is not None:
+                if author_info["ad-ban"] == 1:
+                    await self.dm_user(message.author.id, "Your account has been banned due to a history of misinformation, You cannot post")
+                    return
+            
             #check that there is no existing ad for review
             if self.ad_author_id not in self.ads:
                 new_ad = Ad(self)
@@ -450,17 +451,28 @@ class ModBot(discord.Client):
                 try:
                     #JD COMMENT THIS BACK IN EVENTUALLY
                     confidence_score = self.autoBot.classify(pending_ad=total_ad_info, is_Ad=True)
-                    ad_content_category = None #SET THIS BACK TO 'None' ONCE AUTOMATION ADDED!
+                    ad_content_category = self.autoBot.categorize(classified_ad=total_ad_info, is_Ad=True)
+                    embed_id = None
                     if confidence_score <= self.autoBot.AUTOMATIC_APPROVAL: 
                     #if confidence_score <= 0.27:
                         #automatic approval
-                        ad_content_category = self.autoBot.categorize(classified_ad=total_ad_info, is_Ad=True)
                         total_ad_info["ad"]["status"] = "Approved"
+
+                        if author_info is not None:
+                            if author_info["ad-block"] == 1:
+                                # No dm, since only blocked by this user
+                                # normally wouldn't but since we are just considering one person's feed no need to 
+                                return
+
+                        embed_return = await self.send_group_embed(embed)
+                        embed_id = embed_return.id
                     # elif self.autoBot.AUTOMATIC_APPROVAL < confidence_score and confidence_score <= 0.6:
                     elif self.autoBot.AUTOMATIC_APPROVAL < confidence_score and confidence_score <= self.autoBot.AUTOMATIC_REJECTION:
                         #submit for moderator review
-                        ad_content_category = self.autoBot.categorize(classified_ad=total_ad_info, is_Ad=True)
                         total_ad_info["ad"]["status"] = "Pending"
+
+                        embed_return = await self.send_group_embed(embed)
+                        embed_id = embed_return.id
                     else:
                         #automatic rejection 
                         #add ad to database 
@@ -468,7 +480,7 @@ class ModBot(discord.Client):
 
                     total_ad_info["ad"]["category"] = ad_content_category
                     total_ad_info["ad"]["confidence_score"] = confidence_score
-                    print("this is total ad info = ", total_ad_info)
+                    total_ad_info["message_id"] = embed_id
                     await self.add_ad_to_db_bot(message, total_ad_info)
                     #COMMENT BACK IN BELOW CODE FOR SERVER
                    
@@ -558,18 +570,6 @@ class ModBot(discord.Client):
 
                     # normally wouldn't but since we are just considering one person's feed no need to 
                     return
-
-            # Send Message to Automated Review
-            try:
-                print("hey") #COMMENT BACK IN BELOW CODE FOR SERVER
-                # text_classification = self.autoBot.classify(message.content)
-                # text_category = self.autoBot.categorize(message.content)
-
-                # if text_classification['label'] == 'LABEL_1':
-                #     await self.add_message_to_db_bot(message, text_category, text_classification['score'])
-            except Exception as e: 
-                print(e)
-                print(traceback.format_exc())
 
             return
         
