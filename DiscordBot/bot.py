@@ -39,11 +39,11 @@ with open(token_path) as f:
 
 
 class ModBot(discord.Client):
-
-    REPORT_PRIORITY = {"ron desantis' presidential campaign":3,
-                       "donald trump trials":1,
-                       "conflict between russia and ukraine":2,
-                       "covid or vaccinations":4,}
+    REPORT_PRIORITY = {"elections":4,
+                       "covid":5,
+                       "news":2,
+                       "russia":3,
+                       "other":1,}
     
     LABELS = ["Election", "COVID", "Other"]
 

@@ -44,15 +44,8 @@ class Report:
     OFF_CON_REASONS = ["hate speech", "sexually explicit content", "child sexual abuse material", "advocating or glorifying violence", "copyright infringement"]
     HARASS_REASONS = ["bullying", "hate speech directed at me", "unwanted sexual content", "revealing private information"]
     IMM_DANG_REASONS = ["self harm or suicidal intent", "credible threat of violence"]
-    # MISINFO_CLARITY_REASON_ELECTION = ["ron desantis", "presidential campaign", "ron desantis", "ron", "desantis"]
-    # MISINFO_CLARITY_REASON_DONALD = ["donald trump trials", "donald trump", "donald", "trump"]
-    # MISINFO_CLARITY_REASON_RUSSIA = ["conflict between russia and ukraine", "russia", "ukraine", "russia ukraine"]
-    # MISINFO_CLARITY_REASON_COVID = ["covid or vaccination", "covid", "vaccinations", "covid-19", "vax"]
-    MISINFO_CLARITY_REASONS = [["ron desantis' presidential campaign", "presidential campaign", "ron desantis", "ron", "desantis"], 
-        ["donald trump trials", "donald trump", "donald", "trump"], 
-        ["conflict between russia and ukraine", "russia", "ukraine", "russia ukraine"],
-        ["covid or vaccinations", "covid", "vaccinations", "covid-19", "vax"], 
-        ["no"]]
+    
+    MISINFO_CLARITY_REASONS = [["elections"], ["covid"], ["news"], ["russia"], ["no"]]
     BLOCK_USER = "yes"
     DO_NOT_BLOCK_USER = "no"
     BLOCK_ADVERTISER = ["block advertiser", "block"]
@@ -214,10 +207,10 @@ class Report:
 
                 reply =  "Thank you for reporting a potential instance of " + misinfo_reason + ".\n"
                 reply += "Is it related to any of the following?\n"
-                reply += "• Ron DeSantis' presidential campaign\n"
-                reply += "• Donald Trump trials\n"
-                reply += "• Conflict between Russia and Ukraine\n"
-                reply += "• COVID or vaccinations\n"
+                reply += "• Elections\n"
+                reply += "• COVID\n"
+                reply += "• News\n"
+                reply += "• Russia\n"
                 reply += "• No\n"
                 return [reply]
 

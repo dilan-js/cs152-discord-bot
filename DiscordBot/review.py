@@ -8,12 +8,7 @@ class Review:
     START_KEYWORD = "review"
     CANCEL_KEYWORD = "cancel"
     HELP_KEYWORD = "help"
-    MISINFO_CLARITY_REASONS = [["ron desantis' presidential campaign", "presidential campaign", "ron desantis", "ron", "desantis"], 
-        ["donald trump trials", "donald trump", "donald", "trump"], 
-        ["conflict between russia and ukraine", "russia", "ukraine", "russia ukraine"],
-        ["covid or vaccination", "covid", "vaccinations", "covid-19", "vax"], 
-        ["no"]]
-    
+    MISINFO_CLARITY_REASONS = [["elections"], ["covid"], ["news"], ["russia"], ["no"]]
 
     def __init__(self, client, ad, advertiser_info, reporter_info):
         self.state = State.REVIEW_START
@@ -71,10 +66,10 @@ class Review:
                 self.state = State.EVENT_FIX
                 
                 reply = "Please enter the correct event classification:\n"
-                reply += "• Ron DeSantis' presidential campaign\n"
-                reply += "• Donald Trump trials\n"
-                reply += "• Conflict between Russia and Ukraine\n"
-                reply += "• COVID or vaccinations\n"
+                reply += "• Elections\n"
+                reply += "• COVID\n"
+                reply += "• News\n"
+                reply += "• Russia\n"
                 reply += "• No\n"
                 return [reply]
             else:
@@ -100,10 +95,10 @@ class Review:
                 self.state = State.EVENT_FIX
                 reply = "Sorry! It looks like that was an invalid input.\n"
                 reply += "Please enter the correct event classification:\n"
-                reply += "• Ron DeSantis' presidential campaign\n"
-                reply += "• Donald Trump trials\n"
-                reply += "• Conflict between Russia and Ukraine\n"
-                reply += "• COVID or vaccinations\n"
+                reply += "• Elections\n"
+                reply += "• COVID\n"
+                reply += "• News\n"
+                reply += "• Russia\n"
                 reply += "• No\n"
                 return [reply]
             
