@@ -217,6 +217,23 @@ class ModBot(discord.Client):
 
         id = bot_report.report_complete()
         await self.add_report_to_queue(bot_report, id)
+    
+    async def add_ad_to_db_bot(self, ad_info, ad_content_category, confidence_score):
+        bot_ad = Ad(self)
+        bot_report = Report(self)
+        bot_report.report_type = "Misinformation/Disinformation"
+        bot_report.report_reason = "Untrue/False"
+        bot_report.report_clarity_reason = report_cat
+        bot_report.handle_reported_user = "Do Nothing"
+
+        bot_report.reported_user_info = {"author_id": message.author.id, "author_name":  message.author.name, "message_id": message.id, "message_content": message.content, "channel_id": message.channel.id}
+        bot_report.reporter = {"author_id": 0, "author_name": "Bot", "message_id": 0, "channel_id": 0}
+
+        await self.update_user_database_report(bot_report, confidence)
+
+        id = bot_report.report_complete()
+        await self.add_report_to_queue(bot_report, id)
+
 
     async def fill_out_ad_fields(self, advertiser):
         #pass to ad.py and updaate all fields
@@ -376,10 +393,37 @@ class ModBot(discord.Client):
                 # reply += "If you would like to cancel at anytime, type `cancel` to exit.\n"
                 reply += "Goodbye and have a good day!"
                 await message.channel.send(reply)
-                print(current_ad)
+                # print(current_ad)
                 total_ad_info = await self.fill_out_ad_fields(self.advertiser)
-                print(total_ad_info)
+                # print(total_ad_info)
+                
+                #JD PLACE THIS SOMEWHERE
                 #add_ad_to_pending_db(self.)
+                #Send advertisement to auto bot
+                try:
+                    confidence_score = self.autoBot.classify(pending_ad=total_ad_info, is_Ad=True)
+                    ad_content_category = None
+                    if confidence_score <= self.autoBot.AUTOMATIC_APPROVAL:
+                        #automatic approval
+                        # ad_content_category = self.autoBot.categorize(classified_ad=total_ad_info, is_Ad=True)
+                        total_ad_info["status"] = "Approved"
+                    elif self.autoBot.AUTOMATIC_APPROVAL < confidence_score and confidence_score < self.autoBot.AUTOMATIC_REJECTION:
+                        #submit for moderator review
+                        # ad_content_category = self.autoBot.categorize(classified_ad=total_ad_info, is_Ad=True)
+                        total_ad_info["status"] = "Pending"
+                    else:
+                        #automatic rejection 
+                        #add ad to database 
+                        total_ad_info["status"] = "Rejected"
+                        await self.add_ad_to_db_bot(total_ad_info, ad_content_category, confidence_score)
+                        print("hey") #COMMENT BACK IN BELOW CODE FOR SERVER
+                   
+
+                    # if text_classification['label'] == 'LABEL_1':
+                    #     await self.add_message_to_db_bot(message, text_category, text_classification['score'])
+                except Exception as e: 
+                    print(e)
+                    print(traceback.format_exc())
                 return
             
         #REPORT FLOW

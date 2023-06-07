@@ -33,7 +33,7 @@ class Automation:
        #result = [{'label': 'LABEL_1', 'score': 0.9989520311355591}]
        return result[0]
     
-    def categorize(self, text):
+    def categorize(self, text=None, classified_ad=None, is_Ad=False):
         prompt_text = self.prompt_template + text
         prompt = [{"role": "user", "content": prompt_text}]
 
