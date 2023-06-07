@@ -17,7 +17,6 @@ from tinydb import TinyDB, Query
 from views import ConfirmView
 from views import SelectAction
 from views import SelectAdObjective, SelectAudience
-from automation import Automation
 # from automation import Automation
 import traceback
 
@@ -70,7 +69,7 @@ class ModBot(discord.Client):
         
         self.review_queue = []
 
-        self.autoBot = Automation()
+        # self.autoBot = Automation()
 
     async def on_ready(self):
         print(f'{self.user.name} has connected to Discord! It is these guilds:')
@@ -156,29 +155,28 @@ class ModBot(discord.Client):
             self.usersDB.update({"ad-report": adReport}, self.User["author_id"] == report.reported_user_info["author_id"])
     
     async def update_user_database_ad(self, ad, confidence=0.9):
-        print("hello")
         # Add to info on Reports
-        # if not self.usersDB.contains(self.User["author_id"] == ad["adertiser"]["author_id"]):
-        #     #user_report is num of ads they report
-        #     #user false = false reports
-        #     #report ban = bans user from reporting
-        #     #ad-report = num of ads that user has been reported for 
-        #     #ad false = num ads they submitted that were bad
-        #     #ad ban = banned from posting ads
-        #     #ad block = user has blocked a current user
+        if not self.usersDB.contains(self.User["author_id"] == ad["adertiser"]["author_id"]):
+            #user_report is num of ads they report
+            #user false = false reports
+            #report ban = bans user from reporting
+            #ad-report = num of ads that user has been reported for 
+            #ad false = num ads they submitted that were bad
+            #ad ban = banned from posting ads
+            #ad block = user has blocked a current user
             
-        #     self.usersDB.insert({"author_id": ad["adertiser"]["author_id"], "user-report":1, "user-false":0, "report-ban":0, "ad-report":0, "ad-false":0, "ad-ban": 0, "ad-block": 0, "ban": 0, "confidence": confidence})
-        # else:
-        #     user_info = self.usersDB.get(self.User["author_id"] == ad["adertiser"]["author_id"])
-        #     userReport = user_info["user-report"] + 1
-        #     self.usersDB.update({"user-report": userReport}, self.User["author_id"] == ad["adertiser"]["author_id"])
-        # # Add to info on Advertisers
-        # if not self.usersDB.contains(self.User["author_id"] == report.reported_user_info["author_id"]):
-        #     self.usersDB.insert({"author_id": report.reported_user_info["author_id"], "user-report":0, "user-false":0, "report-ban":0, "ad-report":1, "ad-false":0, "ad-ban": 0, "ad-block": 0, "ban": 0, "confidence": confidence})
-        # else:
-        #     user_info = self.usersDB.get(self.User["author_id"] == report.reported_user_info["author_id"])
-        #     adReport = user_info["ad-report"] + 1
-        #     self.usersDB.update({"ad-report": adReport}, self.User["author_id"] == report.reported_user_info["author_id"])
+            self.usersDB.insert({"author_id": ad["adertiser"]["author_id"], "user-report":1, "user-false":0, "report-ban":0, "ad-report":0, "ad-false":0, "ad-ban": 0, "ad-block": 0, "ban": 0, "confidence": confidence})
+        else:
+            user_info = self.usersDB.get(self.User["author_id"] == ad["adertiser"]["author_id"])
+            userReport = user_info["user-report"] + 1
+            self.usersDB.update({"user-report": userReport}, self.User["author_id"] == ad["adertiser"]["author_id"])
+        # Add to info on Advertisers
+        if not self.usersDB.contains(self.User["author_id"] == report.reported_user_info["author_id"]):
+            self.usersDB.insert({"author_id": report.reported_user_info["author_id"], "user-report":0, "user-false":0, "report-ban":0, "ad-report":1, "ad-false":0, "ad-ban": 0, "ad-block": 0, "ban": 0, "confidence": confidence})
+        else:
+            user_info = self.usersDB.get(self.User["author_id"] == report.reported_user_info["author_id"])
+            adReport = user_info["ad-report"] + 1
+            self.usersDB.update({"ad-report": adReport}, self.User["author_id"] == report.reported_user_info["author_id"])
     
 
 
@@ -278,7 +276,7 @@ class ModBot(discord.Client):
             message_text = "We're sorry! Your advertisement has been rejected by our moderation systems for violating our platform policies. Please revise your ad content or contact customer support.\nThanks for choosing us!"
             await self.send_channel_message(channel_id, message_text )
         #CREATE THIS BELOW FUNCTION IF NECESSARY!
-        await self.update_user_database_ad(bot_ad, confidence)
+       # await self.update_user_database_ad(bot_ad, confidence)
         #STOPPED HERE JD ==> PICK UP HERE AND ADD AD TO DATABASE FOR MODERATION. 
         # id = bot_report.report_complete()
         # if ad_status == 'Pending':
@@ -449,17 +447,18 @@ class ModBot(discord.Client):
             
                 try:
                     #JD COMMENT THIS BACK IN EVENTUALLY
-                    confidence_score = self.autoBot.classify(pending_ad=total_ad_info, is_Ad=True)
-                    ad_content_category = None #SET THIS BACK TO 'None' ONCE AUTOMATION ADDED!
-                    if confidence_score <= self.autoBot.AUTOMATIC_APPROVAL: 
-                    #if confidence_score <= 0.27:
+                    confidence_score = 0.2
+                    # confidence_score = self.autoBot.classify(pending_ad=total_ad_info, is_Ad=True)
+                    ad_content_category = "Elections" #SET THIS BACK TO 'None' ONCE AUTOMATION ADDED!
+                    # if confidence_score <= self.autoBot.AUTOMATIC_APPROVAL: COMMENT BACK IN
+                    if confidence_score <= 0.27:
                         #automatic approval
-                        ad_content_category = self.autoBot.categorize(classified_ad=total_ad_info, is_Ad=True)
+                        # ad_content_category = self.autoBot.categorize(classified_ad=total_ad_info, is_Ad=True)
                         total_ad_info["ad"]["status"] = "Approved"
-                    # elif self.autoBot.AUTOMATIC_APPROVAL < confidence_score and confidence_score <= 0.6:
-                    elif self.autoBot.AUTOMATIC_APPROVAL < confidence_score and confidence_score <= self.autoBot.AUTOMATIC_REJECTION:
+                    elif self.autoBot.AUTOMATIC_APPROVAL < confidence_score and confidence_score <= 0.6:
+                    # elif self.autoBot.AUTOMATIC_APPROVAL < confidence_score and confidence_score <= self.autoBot.AUTOMATIC_REJECTION:
                         #submit for moderator review
-                        ad_content_category = self.autoBot.categorize(classified_ad=total_ad_info, is_Ad=True)
+                        # ad_content_category = self.autoBot.categorize(classified_ad=total_ad_info, is_Ad=True)
                         total_ad_info["ad"]["status"] = "Pending"
                     else:
                         #automatic rejection 

@@ -50,7 +50,7 @@ class Ad:
         self.ad_title = ""
         self.ad_content = ""
         self.advertiser = {"author_id": None, "author_name": None, "ad_id": None, "channel_id": None}
-        self.current_ad = {"id": None, "objective": None, "audience" : None, "title": None, "content": None}
+        self.current_ad = {"id": None, "objective": None, "audience" : None, "title": None, "content": None, "status": None, "category": None, "confidence_score": None}
         print("THIS IS CLIENT", client, client.user)
         # self.report_reason = ""
         # self.report_clarity_reason = ""
@@ -61,10 +61,11 @@ class Ad:
     
     async def fill_out_advertiser_info(self, advertiser):
         print(advertiser)
-        self.advertiser = {"author_id": advertiser["author_id"],
-                           "author_name": advertiser["author_name"],
-                           "ad_id": advertiser["ad_id"],
-                           "channel_id": advertiser["author_id"]}
+        self.advertiser["author_id"] = advertiser["author_id"]
+        self.advertiser["author_name"] = advertiser["author_name"]
+        self.advertiser["ad_id"] = advertiser["ad_id"]
+        self.advertiser["channel_id"] = advertiser["channel_id"]
+       
         self.current_ad["id"] = advertiser["ad_id"]
         total_ad_info = {"advertiser": self.advertiser, "ad": self.current_ad}
         return total_ad_info
