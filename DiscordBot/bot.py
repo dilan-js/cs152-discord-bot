@@ -105,7 +105,8 @@ class ModBot(discord.Client):
             await channel.send(message_text)
         except:
             pass
-
+    
+    # Group 
     async def send_group_embed(self, embed):
         try:
             for guild in self.guilds:

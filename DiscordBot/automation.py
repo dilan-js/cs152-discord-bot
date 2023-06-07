@@ -11,7 +11,7 @@ class Automation:
     MODEL = "jy46604790/Fake-News-Bert-Detect"
     LABELS = ["Election", "COVID", "Other"]
     AUTOMATIC_APPROVAL = 0.27
-    AUTOMATIC_REJECTION = 1.6
+    AUTOMATIC_REJECTION = 0.6
 
     def __init__(self): 
         # Load the vectorizer from the file
