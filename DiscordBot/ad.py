@@ -49,12 +49,14 @@ class Ad:
         self.ad_audience_selections = []
         self.ad_title = ""
         self.ad_content = ""
+        self.current_ad = {"objective": None, "audience" : None, "title": None, "content": None}
+        print("THIS IS CLIENT", client, client.user)
         # self.report_reason = ""
         # self.report_clarity_reason = ""
         # self.handle_reported_user = ""
         # prev_reports = []
 
-        self.ad_creator = {"author_id": None, "author_name": None, "message_id": None, "channel_id": None}
+        self.advertiser = {"author_id": None, "author_name": None, "message_id": None, "channel_id": None}
     
     async def handle_message(self, message):
         '''
@@ -76,6 +78,7 @@ class Ad:
             if user_msg in self.OBJECTIVE_OPTIONS:
                 self.state = AD_STATE.AD_OBJECTIVE_SELECTED
                 self.ad_objective = user_msg
+                self.current_ad["objective"] = user_msg
                 reply = "Great! Now that you selected `" + user_msg + "` as an objective, let's define your audience. \n"
                 reply += "Select your preferred audiences from the select menu.\n"
                 reply += "If you would like to cancel at anytime, type `cancel` to exit."
@@ -92,6 +95,7 @@ class Ad:
             if set(user_selections).issubset(set(Ad.AUDIENCE_OPTIONS)):
                 self.ad_audience_selections = user_selections
                 selections = ", ".join(user_selections)
+                self.current_ad["audience"] = user_selections
                 self.state = AD_STATE.AUDIENCE_IDENTIFIED
                 reply = "Great! Now that you selected your audiences: `" + selections + "`, let's get your advertising material. \n\n"
                 reply += "Type in the title of the ad you want to create.\n"
@@ -109,6 +113,7 @@ class Ad:
             if user_msg is not None or len(user_msg) != 0:
                 self.ad_title = user_msg
                 self.state = AD_STATE.AD_TITLE_CONFIGURED
+                self.current_ad["title"] = user_msg
                 reply = "Great! Now that you set your ad title: `" + user_msg + "`, let's write the content for your ad. \n\n"
                 reply += "Type in the description or content you want to promote. \n"
                 reply += "If you would like to cancel at anytime, type `cancel` to exit."
@@ -125,17 +130,18 @@ class Ad:
             if user_msg is not None or len(user_msg) != 0:
                 self.ad_content = user_msg
                 self.state = AD_STATE.AD_PENDING_REVIEW
+                self.current_ad["content"] = user_msg
                 reply = "Great! Now that you've written your ad content: `" + user_msg + "`, you're done!. \n\n"
                 reply += "Below is what your advertisement looks like! \n\n"
                 reply += "The ad will go for review and we will get back to you shortly. \n"
                 reply += "If you would like to cancel at anytime, type `cancel` to exit."
-                return [reply]
+                return [reply], self.current_ad
             else:
                 reply = "Sorry, there seems to be a problem.\n"
                 reply += "Please re-try creating an advertisement!\n"
                 reply += "Goodbye."
                 self.state = AD_STATE.AD_CANCELLED
-                return [reply]
+                return [reply], self.current_ad
 
     
         return []

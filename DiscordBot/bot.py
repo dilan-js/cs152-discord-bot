@@ -56,6 +56,8 @@ class ModBot(discord.Client):
         self.current_review = None
         self.current_report = None
         self.ads = {}
+        self.ad_author_id = None
+        self.advertiser = {"author_id": None, "author_name": None, "ad_id": None, "channel_id": None}
         self.db = TinyDB('db.json')
         self.usersDB = TinyDB('users.json')
         self.reviewDB = TinyDB('reviewQueue.json')
@@ -251,7 +253,6 @@ class ModBot(discord.Client):
             if view.selected_value == 'Create an ad':
                 self.does_user_want_to_report = False
                 self.does_user_want_to_ad = True
-              
                 await message.channel.send("Awesome! You want to create an ad.")
             elif view.selected_value == "Report an ad":
                 self.does_user_want_to_report = True
@@ -261,46 +262,55 @@ class ModBot(discord.Client):
             
         if self.does_user_want_to_ad:
             #handle cancelling
+            self.ad_author_id = message.author.id
             if message.content == Ad.CANCEL_KEYWORD:
-                responses = await self.ads[author_id].handle_message(message)
+                responses = await self.ads[self.ad_author_id].handle_message(message)
                 for r in responses:
                     await message.channel.send(r)
-                self.ads.pop(author_id)
+                print("WE ARE POPPING")
+                self.ads.pop(self.ad_author_id)
             #check that there is no existing ad for review
-            if author_id not in self.ads:
+            if self.ad_author_id not in self.ads:
                 new_ad = Ad(self)
-                self.ads[author_id] = new_ad 
-            else:
-                reply =  "Oh no!\n"
-                reply += "It seems you have already submitted an advertisement for review.\n"
-                reply += "Until that advertisement is reviewed, we cannot deploy another ad.\n"
-                reply += "We're very sorry. Please have a good day! Goodbye\n"
-                await message.channel.send(reply)
-                 
+                print("WE ARE ADDING")
+                self.advertiser["author_id"] = message.author.id
+                self.advertiser["author_name"] = message.author.name
+                self.advertiser["channel_id"] = message.channel.id
+                self.ads[self.ad_author_id] = new_ad 
+            # elif  self.ad_author_id  in self.ads
+            #when a usre submits for review, they should not be able to submit another ad
+            #ad under review means ad is in database, not in self.ads datastructre
+            # else:
+            #     reply =  "Oh no!\n"
+            #     reply += "It seems you have already submitted an advertisement for review.\n"
+            #     reply += "Until that advertisement is reviewed, we cannot deploy another ad.\n"
+            #     reply += "We're very sorry. Please have a good day! Goodbye\n"
+            #     await message.channel.send(reply)
+            #     return
                 
-
-
-                
-
             #get their objectives
-            if self.ads[author_id].state == AD_STATE.AD_START:
+            if self.ads[self.ad_author_id].state == AD_STATE.AD_START:
                 reply =  "On to the next step!\n"
                 reply += "Use the select menu to pick an objective for your ad.\n"
                 reply += "You can also type `cancel` anytime to cancel all actions.\n"
-                message.channel.send(reply)
-            view = SelectAdObjective.SelectAdObjective()
+                await message.channel.send(reply)
+                view = SelectAdObjective.SelectAdObjective()
+                
+                await message.channel.send(view=view)
+                await view.wait()
+                user_objective_selection = view.selected_ad_objective.lower()
+                if user_objective_selection in Ad.OBJECTIVE_OPTIONS:
+                    responses = await self.ads[self.ad_author_id].handle_message(user_objective_selection)
+                    should_cancel = False
+                    for r in responses:
+                        if 'Sorry' in r or 'sorry' in r:
+                            self.ads.pop(self.ad_author_id)
+                            should_cancel = True
+                        await message.channel.send(r)
+                    if should_cancel:
+                        return
             
-            await message.channel.send(view=view)
-            await view.wait()
-            user_objective_selection = view.selected_ad_objective.lower()
-            if user_objective_selection in Ad.OBJECTIVE_OPTIONS:
-                responses = await self.ads[author_id].handle_message(user_objective_selection)
-                for r in responses:
-                    if 'Sorry' in r or 'sorry' in r:
-                        self.ads.pop(author_id)
-                    await message.channel.send(r)
-            
-            if self.ads[author_id].state == AD_STATE.AD_OBJECTIVE_SELECTED:
+            if self.ads[self.ad_author_id].state == AD_STATE.AD_OBJECTIVE_SELECTED:
                 #user made successful objective selection
                 #create audience 
                 print("HIi")
@@ -311,35 +321,50 @@ class ModBot(discord.Client):
                 user_audience_selections = view.selected_audience
                 user_audience_selections = [selection.lower() for selection in user_audience_selections]
                 if set(user_audience_selections).issubset(set(Ad.AUDIENCE_OPTIONS)):
-                    responses = await self.ads[author_id].handle_message(user_audience_selections)
+                    responses = await self.ads[self.ad_author_id].handle_message(user_audience_selections)
+                    should_cancel = False
                     for r in responses:
                         if 'Sorry' in r or 'sorry' in r:
-                            self.ads.pop(author_id)
+                            self.ads.pop(self.ad_author_id)
+                            should_cancel = True
                         await message.channel.send(r)
-                return  
-           
-        print("dilan IN AUDIENCE IDENTIFIED, TITLE = ", message.content)
-        if self.ads[author_id].state == AD_STATE.AUDIENCE_IDENTIFIED:
-            print("dilan IN AUDIENCE IDENTIFIED, TITLE = ", message.content)
-            #user made successful objective selection
-            #create audience 
-            user_title = message.content
-            responses = await self.ads[author_id].handle_message(user_title)
-            for r in responses:
-                if 'Sorry' in r or 'sorry' in r:
-                    self.ads.pop(author_id)
-                await message.channel.send(r)
-            return
-        if self.ads[author_id].state == AD_STATE.AD_TITLE_CONFIGURED:
-            #user made successful objective selection
-            #create audience 
-            responses = await self.ads[author_id].handle_message(message.content)
-            for r in responses:
-                if 'Sorry' in r or 'sorry' in r:
-                    self.ads.pop(author_id)
-                await message.channel.send(r)
-
+                    if should_cancel:
+                        return
+                return        
+            if self.ads[self.ad_author_id].state == AD_STATE.AUDIENCE_IDENTIFIED:
+                # directions = "Type in the title of the ad you want to create.\n"
+                # directions += "If you would like to cancel at anytime, type `cancel` to exit."
+                # await message.channel.send(directions)
+                print("dilan IN AUDIENCE IDENTIFIED, TITLE = ", message.content)
+                #user made successful objective selection
+                #create audience 
+                user_title = message.content
+                responses = await self.ads[self.ad_author_id].handle_message(user_title)
+                for r in responses:
+                    if 'Sorry' in r or 'sorry' in r:
+                        self.ads.pop(self.ad_author_id)
+                    await message.channel.send(r)
+                return
+            
+            if self.ads[self.ad_author_id].state == AD_STATE.AD_TITLE_CONFIGURED:
+                #user made successful objective selection
+                #create audience 
                 
+                responses, current_ad = await self.ads[self.ad_author_id].handle_message(message.content)
+                
+
+                should_cancel = False
+                for r in responses:
+                    if 'Sorry' in r or 'sorry' in r:
+                        self.ads.pop(self.ad_author_id)
+                        should_cancel = True
+                    await message.channel.send(r)
+                if should_cancel:
+                    return
+                
+                embed = discord.Embed(title=current_ad["title"], description=current_ad["content"])
+                await message.channel.send(embed=embed)
+                print(current_ad)
 
 
 

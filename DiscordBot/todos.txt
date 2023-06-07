@@ -34,3 +34,10 @@ Main todos:
 reporter
 reported
 report
+
+
+
+ad flow: 
+1. if user types help in middle of flow, we indicate they cannot. they must cancel
+2. if user tries to create new ad after one is pending, they cannot
+3. embed 
