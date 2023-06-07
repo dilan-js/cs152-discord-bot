@@ -6,6 +6,7 @@ import json
 import logging
 import re
 import requests
+import random
 from report import Report
 from ad import Ad
 from ad import AD_STATE
@@ -217,6 +218,10 @@ class ModBot(discord.Client):
         id = bot_report.report_complete()
         await self.add_report_to_queue(bot_report, id)
 
+    async def fill_out_ad_fields(self, advertiser):
+        #pass to ad.py and updaate all fields
+        return await self.ads[self.ad_author_id].fill_out_advertiser_info(advertiser)
+
     async def on_message(self, message):
         '''
         This function is called whenever a message is sent in a channel that the bot can see (including DMs). 
@@ -272,10 +277,13 @@ class ModBot(discord.Client):
             #check that there is no existing ad for review
             if self.ad_author_id not in self.ads:
                 new_ad = Ad(self)
-                print("WE ARE ADDING")
+                ad_id = int(random.randint(1,500000000))
+                # print("THIS IS ID = ", ad_id)
+                # print("WE ARE ADDING")
                 self.advertiser["author_id"] = message.author.id
                 self.advertiser["author_name"] = message.author.name
                 self.advertiser["channel_id"] = message.channel.id
+                self.advertiser["ad_id"] = ad_id
                 self.ads[self.ad_author_id] = new_ad 
             # elif  self.ad_author_id  in self.ads
             #when a usre submits for review, they should not be able to submit another ad
@@ -313,7 +321,7 @@ class ModBot(discord.Client):
             if self.ads[self.ad_author_id].state == AD_STATE.AD_OBJECTIVE_SELECTED:
                 #user made successful objective selection
                 #create audience 
-                print("HIi")
+               
                 view = SelectAudience.SelectAudience()
                 
                 await message.channel.send(view=view)
@@ -335,7 +343,7 @@ class ModBot(discord.Client):
                 # directions = "Type in the title of the ad you want to create.\n"
                 # directions += "If you would like to cancel at anytime, type `cancel` to exit."
                 # await message.channel.send(directions)
-                print("dilan IN AUDIENCE IDENTIFIED, TITLE = ", message.content)
+                # print("dilan IN AUDIENCE IDENTIFIED, TITLE = ", message.content)
                 #user made successful objective selection
                 #create audience 
                 user_title = message.content
@@ -351,8 +359,6 @@ class ModBot(discord.Client):
                 #create audience 
                 
                 responses, current_ad = await self.ads[self.ad_author_id].handle_message(message.content)
-                
-
                 should_cancel = False
                 for r in responses:
                     if 'Sorry' in r or 'sorry' in r:
@@ -362,71 +368,78 @@ class ModBot(discord.Client):
                 if should_cancel:
                     return
                 
-                embed = discord.Embed(title=current_ad["title"], description=current_ad["content"])
+                embed = discord.Embed(title=f'A sponsored message by {self.advertiser["author_name"]}', color=discord.Colour.brand_red())
+                embed.add_field(name=current_ad["title"], value =current_ad["content"], inline=True)
+                # embed.add_field(name=None, value=)
                 await message.channel.send(embed=embed)
+                reply = "The ad will go for review. Check back here shortly for updates on your ad.\n"
+                # reply += "If you would like to cancel at anytime, type `cancel` to exit.\n"
+                reply += "Goodbye and have a good day!"
+                await message.channel.send(reply)
                 print(current_ad)
-
-
-
+                total_ad_info = await self.fill_out_ad_fields(self.advertiser)
+                print(total_ad_info)
+                #add_ad_to_pending_db(self.)
+                return
             
+        #REPORT FLOW
+        elif self.does_user_want_to_report:
+            # Check if the Sender is Banned from reporting
+            try:
+                author_info = self.usersDB.get(self.User["author_id"] == message.author.id)
+            except:
+                author_info = None
             
+            if author_info is not None:
+                if author_info["report-ban"] == 1:
+                    await self.dm_user(message.author.id, "Your account has been banned from reporting due to a history of false reports")
+                    return
 
-        # Check if the Sender is Banned from reporting
-        try:
-            author_info = self.usersDB.get(self.User["author_id"] == message.author.id)
-        except:
-            author_info = None
-        
-        if author_info is not None:
-            if author_info["report-ban"] == 1:
-                await self.dm_user(message.author.id, "Your account has been banned from reporting due to a history of false reports")
+            author_id = message.author.id
+            responses = []
+
+            # Only respond to messages if they're part of a reporting flow
+            if author_id not in self.reports and self.does_user_want_to_report is False :
+                reply =  "You do not have an active report in progress.\n"
+                reply += "Use the `help` command to learn about your options.\n"
+                await message.channel.send(reply)
                 return
 
-        author_id = message.author.id
-        responses = []
-
-        # Only respond to messages if they're part of a reporting flow
-        if author_id not in self.reports and not message.content.startswith(Report.START_KEYWORD):
-            reply =  "You do not have an active report in progress.\n"
-            reply += "Use the `help` command to learn about your options.\n"
-            await message.channel.send(reply)
-            return
-
-        # If we don't currently have an active report for this user, add one
-        if author_id not in self.reports:
-            new_report = Report(self)
-            self.reports[author_id] = new_report
-        
-        # Hand Next Step in Reporting Flow
-        responses = await self.reports[author_id].handle_message(message)
-        current_report = self.reports[author_id]
-        
-        # Send Responses to User
-        for r in responses:
-            await message.channel.send(r)
-
-        # view = Confirm_View()
-        # If the report is complete or cancelled, remove it from our map
-        if current_report.state == State.REPORT_CANCELLED:
-            current_report.report_cancelled()
-            self.reports.pop(author_id)
-
-        elif current_report.state == State.REPORT_COMPLETE:
-            id = current_report.report_complete()
-            # ADD TO DB!
+            # If we don't currently have an active report for this user, add one
+            if author_id not in self.reports:
+                new_report = Report(self)
+                self.reports[author_id] = new_report
             
-            # Update Reports Queue
-            await self.add_report_to_queue(current_report, id)
-
-            # Update User Database
-            await self.update_user_database_report(current_report)
+            # Hand Next Step in Reporting Flow
+            responses = await self.reports[author_id].handle_message(message)
+            current_report = self.reports[author_id]
             
-            # Handle if the User Blocks the advertiser
-            if current_report.handle_reported_user == 'block':
-                print("Blocking")
-                await self.block_user(current_report.reported_user_info["author_id"])
+            # Send Responses to User
+            for r in responses:
+                await message.channel.send(r)
 
-            self.reports.pop(author_id)
+            # view = Confirm_View()
+            # If the report is complete or cancelled, remove it from our map
+            if current_report.state == State.REPORT_CANCELLED:
+                current_report.report_cancelled()
+                self.reports.pop(author_id)
+
+            elif current_report.state == State.REPORT_COMPLETE:
+                id = current_report.report_complete()
+                # ADD TO DB!
+                
+                # Update Reports Queue
+                await self.add_report_to_queue(current_report, id)
+
+                # Update User Database
+                await self.update_user_database_report(current_report)
+                
+                # Handle if the User Blocks the advertiser
+                if current_report.handle_reported_user == 'block':
+                    print("Blocking")
+                    await self.block_user(current_report.reported_user_info["author_id"])
+
+                self.reports.pop(author_id)
         
 
     async def handle_channel_message(self, message):

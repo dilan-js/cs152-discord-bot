@@ -7,6 +7,8 @@ import os
 class Automation:
     MODEL = "jy46604790/Fake-News-Bert-Detect"
     LABELS = ["Election", "COVID", "Other"]
+    AUTOMATIC_APPROVAL = 0.27
+    AUTOMATIC_REJECTION = 0.6
 
     def __init__(self): 
         self.clf = pipeline("text-classification", model=self.MODEL, tokenizer=self.MODEL)
@@ -26,7 +28,7 @@ class Automation:
         for label in self.LABELS:
             self.prompt_template += " " + label + ","
 
-    def classify(self, text):
+    def classify(self, text=None, pending_ad=None, is_Ad=False):
        result = self.clf(text)
        #result = [{'label': 'LABEL_1', 'score': 0.9989520311355591}]
        return result[0]

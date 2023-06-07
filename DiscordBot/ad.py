@@ -49,7 +49,8 @@ class Ad:
         self.ad_audience_selections = []
         self.ad_title = ""
         self.ad_content = ""
-        self.current_ad = {"objective": None, "audience" : None, "title": None, "content": None}
+        self.advertiser = {"author_id": None, "author_name": None, "ad_id": None, "channel_id": None}
+        self.current_ad = {"id": None, "objective": None, "audience" : None, "title": None, "content": None}
         print("THIS IS CLIENT", client, client.user)
         # self.report_reason = ""
         # self.report_clarity_reason = ""
@@ -58,6 +59,16 @@ class Ad:
 
         self.advertiser = {"author_id": None, "author_name": None, "message_id": None, "channel_id": None}
     
+    async def fill_out_advertiser_info(self, advertiser):
+        print(advertiser)
+        self.advertiser = {"author_id": advertiser["author_id"],
+                           "author_name": advertiser["author_name"],
+                           "ad_id": advertiser["ad_id"],
+                           "channel_id": advertiser["author_id"]}
+        self.current_ad["id"] = advertiser["ad_id"]
+        total_ad_info = {"advertiser": self.advertiser, "ad": self.current_ad}
+        return total_ad_info
+               
     async def handle_message(self, message):
         '''
         This function makes up the meat of the user-side reporting flow. It defines how we transition between states and what 
@@ -133,8 +144,6 @@ class Ad:
                 self.current_ad["content"] = user_msg
                 reply = "Great! Now that you've written your ad content: `" + user_msg + "`, you're done!. \n\n"
                 reply += "Below is what your advertisement looks like! \n\n"
-                reply += "The ad will go for review and we will get back to you shortly. \n"
-                reply += "If you would like to cancel at anytime, type `cancel` to exit."
                 return [reply], self.current_ad
             else:
                 reply = "Sorry, there seems to be a problem.\n"
