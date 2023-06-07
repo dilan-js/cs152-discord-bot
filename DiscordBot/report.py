@@ -68,6 +68,7 @@ class Report:
         self.report_reason = ""
         self.report_clarity_reason = ""
         self.handle_reported_user = ""
+        self.confidence = 0.9
         prev_reports = []
         self.reporter = {"author_id": None, "author_name": None, "message_id": None, "channel_id": None}
     
@@ -119,13 +120,19 @@ class Report:
             message.content = message.content.lower().strip()
             print("THIS IS MESSAGE AFTER = ", message.content)
             self.reported_user_info["message_content"] = message.content
+            if (len(message.embeds) > 0):
+                self.reported_user_info["message_content"] += str(message.embeds[0].title) + "\n"
+                if (len(message.embeds[0].fields) > 0):
+                    for field in message.embeds[0].fields:
+                        self.reported_user_info["message_content"] += str(field.name) + "\n"
+                        self.reported_user_info["message_content"] += str(field.value) + "\n"
             self.reported_user_info["message_id"] = message.id
             self.reported_user_info["channel_id"] = message.channel.id
             self.reported_user_info["author_id"] = message.author.id
             self.reported_user_info["author_name"] = message.author.name
 
             print('perp info = ', self.reported_user_info)
-            return ["I found this message:", "```" + message.author.name + ": " + message.content + "```", \
+            return ["I found this message:", "```" + message.author.name + ": " + self.reported_user_info["message_content"] + "```", \
                     "Is this the correct message? Type 'yes' to continue or type 'cancel' to restart."]
         
         if self.state == State.MESSAGE_IDENTIFIED:
@@ -335,9 +342,9 @@ class Report:
         db = TinyDB('db.json')
         id = random.randint(0, 1200) 
         reported_user = self.reported_user_info
-        report = {"report_type": self.report_type, "report_reason": self.report_reason, "report_clarity_reason": self.report_clarity_reason, "report_resolution": self.handle_reported_user}
+        report = {"report_type": self.report_type, "report_reason": self.report_reason, "report_clarity_reason": self.report_clarity_reason, "report_resolution": self.handle_reported_user, "confidence": self.confidence}
         reporter = self.reporter
-        db.insert({"id": id, "reporter" : reporter, "reported_user": reported_user, "report": report})
+        db.insert({"id": id, "reporter" : reporter, "reported_user": reported_user, "report": report, "message_id":reported_user["message_id"]})
         print("saved to db successfully")
 
         return id
