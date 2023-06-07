@@ -1,7 +1,10 @@
-from transformers import pipeline
 import openai
 import json
 import os
+import pickle
+import pickle
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.svm import SVC
 
 
 class Automation:
@@ -11,7 +14,13 @@ class Automation:
     AUTOMATIC_REJECTION = 0.6
 
     def __init__(self): 
-        self.clf = pipeline("text-classification", model=self.MODEL, tokenizer=self.MODEL)
+        # Load the vectorizer from the file
+        with open('vectorizer.pkl', 'rb') as f:
+            self.vectorizer = pickle.load(f)
+
+        # Load the classifier from the file
+        with open('classifier.pkl', 'rb') as f:
+            self.classifier = pickle.load(f)
 
         # There should be a file called 'tokens.json' inside the same folder as this file
         token_path = 'tokens.json'
@@ -28,13 +37,15 @@ class Automation:
         for label in self.LABELS:
             self.prompt_template += " " + label + ","
 
-    def classify(self, text=None, pending_ad=None, is_Ad=False):
-       result = self.clf(text)
-       #result = [{'label': 'LABEL_1', 'score': 0.9989520311355591}]
-       return result[0]
+    def classify(self, pending_ad=None, is_Ad=True):
+        text_input = str(pending_ad['ad']['title']) + " " + str(pending_ad['ad']['content'])
+        input_vector = self.vectorizer.transform([text_input])
+        prediction = self.classifier.decision_function(input_vector)
+        return prediction[0]
     
-    def categorize(self, text=None, classified_ad=None, is_Ad=False):
-        prompt_text = self.prompt_template + text
+    def categorize(self, classified_ad=None, is_Ad=True):
+        text_input = str(classified_ad['ad']['title']) + " " + str(classified_ad['ad']['content'])
+        prompt_text = self.prompt_template + text_input
         prompt = [{"role": "user", "content": prompt_text}]
 
         response = openai.ChatCompletion.create(
